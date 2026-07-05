@@ -23,7 +23,8 @@ COPY --from=builder --chown=app:app /app/src /app/src
 ENV PATH="/app/.venv/bin:$PATH" \
     SERVER_HOST=0.0.0.0 \
     SERVER_PORT=8000 \
-    CACHE_DB_PATH=/data/cache.db
+    CACHE_DB_PATH=/data/cache.db \
+    DART_API_KEY=9d3a602edd263c64ad5b84cff886a167fdc52df0
 
 # 캐시 DB 볼륨 (컨테이너 재시작에도 DART 호출 한도 절약 유지)
 RUN mkdir -p /data && chown app:app /data
