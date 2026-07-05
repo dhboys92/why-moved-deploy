@@ -6,8 +6,9 @@
 
 **"내 주식이 오늘 왜 떨어졌지?"** — 1,400만 개인투자자의 1등 질문에, 공시가 답합니다.
 
-[![Tests](https://img.shields.io/badge/tests-84%20passed-brightgreen)](tests/)
-[![Coverage](https://img.shields.io/badge/coverage-82%25-brightgreen)](tests/)
+[![Version](https://img.shields.io/badge/v0.2.1-%EC%B0%A8%ED%8A%B8%20%EC%9D%91%EB%8B%B5-FEE500)](src/why_moved/engine/charts.py)
+[![Tests](https://img.shields.io/badge/tests-104%20passed-brightgreen)](tests/)
+[![Coverage](https://img.shields.io/badge/coverage-81%25-brightgreen)](tests/)
 [![Tools](https://img.shields.io/badge/MCP%20tools-7-blue)](src/why_moved/tools/)
 [![Python](https://img.shields.io/badge/python-3.12-blue)](pyproject.toml)
 [![MCP](https://img.shields.io/badge/MCP-Streamable%20HTTP-purple)](src/why_moved/server.py)
@@ -25,9 +26,10 @@
 >
 > 🤖 삼성전자은(는) 2026-07-03 기준 **8.2% 올랐어요.** 확인된 공개 요인:
 > 1) [20260701] 임원·주요주주 소유상황보고서 — 회사 내부자가 주식을 사거나 팔았어요. 내부자가 자기 돈으로 사는 것은 통상 회사에 대한 자신감 신호로 해석되는 유형이에요.
-> 2) 기관이 약 **13,524억원(추정) 순매수**했어요.
-> 3) KOSPI 지수 자체가 +5.8% 올랐어요. 시장 전체 흐름의 영향일 수 있어요.
-> 📎 [공시 원문 보기 (DART)](https://dart.fss.or.kr) · *20260703 종가 기준*
+> 2) 관련 뉴스: *"한은의 경고 '삼전닉스 레버리지…'"* (문화일보) — 당일 뉴스 헤드라인까지 원인 후보로 연결
+> 3) 기관이 약 **13,524억원(추정) 순매수**했어요.
+> 최근 30일 흐름: `▁▁▂▃▇▇▄▄▁▄▅▆█▇▂█▅▅▃▂`
+> 📊 *+ 아래의 가격×공시 차트가 이미지로 함께 옵니다* · 📎 [공시 원문 (DART)](https://dart.fss.or.kr) · *20260703 종가 기준*
 
 > 👤 **카카오 위험한 종목이야?**
 >
@@ -53,15 +55,36 @@
 
 ---
 
+## 📊 말이 아니라, 차트로 답합니다
+
+모든 핵심 답변에 서버가 직접 그린 차트가 `chart_url`로 함께 옵니다.
+텍스트만 지원하는 클라이언트를 위해 유니코드 스파크라인(`▁▂▄▇`)·점수바(`███░░ 60`) 폴백도 내장했습니다.
+
+<div align="center">
+
+**① 가격×공시 이벤트 차트** — 공시와 주가를 한 장에. 번호 마커는 응답의 `chart_events` 목록(공시명·DART 원문 링크)과 1:1로 연결됩니다.
+
+<img src="assets/chart-price-events.png" width="760" alt="가격×공시 차트">
+
+| **② 5축 건강진단 레이더** (학점 워터마크) | **③ 기관·외국인 순매수 × 주가** |
+|:---:|:---:|
+| <img src="assets/chart-radar.png" width="360" alt="레이더 차트"> | <img src="assets/chart-flow.png" width="420" alt="수급 차트"> |
+
+**④ 위험신호 진단 카드** — 카톡방에 공유하기 좋은 요약 이미지
+
+<img src="assets/chart-risk-card.png" width="560" alt="위험 카드">
+
+</div>
+
 ## 📸 실제 동작 화면
 
-| "왜 움직였어?" — 공시·수급·시장 연결 설명 | "위험해?" — 15가지 위험신호 진단 |
+| "왜 움직였어?" — 공시·뉴스·수급·시장 연결 | "위험해?" — 15가지 위험신호 진단 |
 |:---:|:---:|
 | ![why_moved 데모](assets/demo-why-moved.png) | ![risk_check 데모](assets/demo-risk-check.png) |
 
 <div align="center">
 
-**재무 건강진단 — 5축 점수와 A~F 학점, 쉬운 문장 해설**
+**재무 건강진단 — 레이더 차트 + 점수바 + 쉬운 문장 해설**
 
 <img src="assets/demo-stock-health.png" width="720" alt="stock_health 데모">
 
@@ -73,15 +96,15 @@
 
 ## 🔧 7가지 도구
 
-| Tool | 무엇을 하나 | 이렇게 물어보세요 |
-|---|---|---|
-| 🔍 `why_moved` | 급등락 원인을 공시+수급+시장 흐름으로 3줄 설명 | "삼성전자 오늘 왜 떨어졌어?" |
-| 🚨 `risk_check` | 위험신호 15개 룰 진단 (감사의견·자본잠식·관리종목·CB 남발·횡령배임…) | "이 종목 위험한 거 아니야?" |
-| 📖 `explain_disclosure` | 공시를 "무슨 일이야? / 그래서 뭐? / 나랑 무슨 상관?" 3문항으로 통역 | "유상증자 공시 쉽게 설명해줘" |
-| 🏥 `stock_health` | 재무 건강 5축 점수 + A~F 학점 + 쉬운 문장 | "카카오 재무 상태 어때?" |
-| 💰 `insider_signal` | 임원·5% 큰손의 **공시된 실제 매매** 추적 | "임원들이 최근 자기 주식 샀어?" |
-| 📰 `daily_digest` | 오늘의 주요 공시를 초보자 눈높이로 요약 | "오늘 중요한 공시 뭐 있어?" |
-| 🔎 `screen_stocks` | 자연어 종목 검색 | "배당 4% 이상 PBR 1 이하 코스피" |
+| Tool | 무엇을 하나 | 시각화 | 이렇게 물어보세요 |
+|---|---|---|---|
+| 🔍 `why_moved` | 급등락 원인을 **공시+뉴스+수급+업종+시장** 5중으로 설명, 장중엔 지연 현재가 병기 | 가격×공시 차트 + 스파크라인 | "삼성전자 오늘 왜 떨어졌어?" |
+| 🚨 `risk_check` | 위험신호 15개 룰 진단 (감사의견·자본잠식·관리종목·CB 남발·횡령배임…) | 진단 카드 | "이 종목 위험한 거 아니야?" |
+| 📖 `explain_disclosure` | 공시를 "무슨 일이야? / 그래서 뭐? / 나랑 무슨 상관?" 3문항으로 통역 | — | "유상증자 공시 쉽게 설명해줘" |
+| 🏥 `stock_health` | 재무 건강 5축 점수 + A~F 학점 + 업종 비교 노트 | 레이더 차트 + 점수바 | "카카오 재무 상태 어때?" |
+| 💰 `insider_signal` | 임원·5% 큰손의 **공시된 실제 매매** — 장내매수/스톡옵션 등 사유별 신호 강도 구분 | 수급×주가 차트 | "임원들이 최근 자기 주식 샀어?" |
+| 📰 `daily_digest` | 오늘의 주요 공시 요약 (시총 상위·관심종목 가중) | — | "오늘 중요한 공시 뭐 있어?" |
+| 🔎 `screen_stocks` | 자연어 종목 검색 | — | "배당 4% 이상 PBR 1 이하 코스피" |
 
 ---
 
@@ -135,17 +158,20 @@ flowchart LR
     subgraph Server["왜움직여? MCP 서버 (PlayMCP in KC)"]
         T["MCP Tools ×7<br/>why_moved · risk_check · ..."]
         E["해석 엔진<br/>공시 템플릿 20종 · 용어사전 50개<br/>위험 룰 15개 · 건강점수 5축"]
-        C[("TTL 캐시<br/>SQLite")]
+        G["차트 엔진<br/>가격×공시 · 레이더 · 수급 · 위험카드<br/>(matplotlib + 나눔고딕 번들)"]
+        C[("TTL 캐시<br/>SQLite + PNG 저장소")]
     end
     subgraph Data["100% 무료 공개 데이터"]
         D["DART OpenAPI<br/>공시·재무·지분"]
-        N["시세·수급·밸류에이션"]
+        N["시세·수급·밸류에이션<br/>종목뉴스·장중시세·업종비교"]
         K["KIND<br/>관리종목·불성실공시"]
     end
     KT --> T
     AI --> T
     T --> E
+    T --> G
     E --> C
+    G --> C
     C --> D
     C --> N
     C --> K
@@ -200,14 +226,14 @@ sequenceDiagram
 
 | 항목 | 수치 |
 |---|---|
-| 테스트 | **84건 전부 통과** (룰별 양성/음성, 어댑터 HTTP 모킹, envelope 계약) |
-| 커버리지 | **82%** (목표 80%) |
-| 실데이터 E2E | 7개 tool 전부 실종목(삼성전자·카카오 등)으로 검증 |
+| 테스트 | **104건 전부 통과** (룰별 양성/음성, 어댑터 HTTP 모킹, 차트 PNG 스모크, envelope 계약) |
+| 커버리지 | **81%** (목표 80%) |
+| 실데이터 E2E | 7개 tool 전부 실종목(삼성전자·카카오 등)으로 검증, 차트 4종 브라우저 렌더 확인 |
 | 배포 검증 | PlayMCP in KC Active — 원격 MCP 프로토콜로 7개 tool 재검증 완료 |
 | 규제 방어 | 권유 표현 서버 차단 + 전 응답 고지·출처 (유사투자자문 아님) |
 
 ```bash
-uv run pytest --cov    # 84 passed, 82% coverage
+uv run pytest --cov    # 104 passed, 81% coverage
 ```
 
 ---
@@ -266,9 +292,9 @@ scripts/                   # CLI 클라이언트, 데모 캡처
 
 ## 🗺️ 로드맵
 
+- ✅ **v0.2 (완료)**: 차트 응답 4종 + 번호 마커↔공시 연결, 뉴스·업종·장중시세 데이터 확장, 유니코드 시각화 폴백
 - **본선 (7/30~8/27)**: Kakao Tools 위젯 — 건강진단 학점 카드, 위험신호 배지, 공시 타임라인
-- **v1.1**: 공매도 잔고 룰(R13) 데이터 연결, 관심종목 위험공시 알림
-- **v1.2**: 어닝 서프라이즈 감지 (잠정실적 vs 전년동기), 공시 히스토리 타임라인
+- **v0.3**: 공매도 잔고 룰(R13) 데이터 연결, 관심종목 위험공시 알림, 어닝 서프라이즈 감지
 
 ## ⚖️ 면책
 
