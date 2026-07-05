@@ -143,6 +143,10 @@ class MarketDataClient:
         self._cache.set(key, rows, PRICE_TTL)
         return rows
 
+    async def get_flow_rows(self, code: str, pages: int = 3) -> list[dict]:
+        """기관·외국인 일별 순매매 원자료 (차트용). [{date, close, inst_shares, frgn_shares}]"""
+        return await self._frgn_rows(code, pages)
+
     async def get_investor_flow(self, code: str, date: str | None = None) -> dict:
         """당일 기관·외국인 순매수 추정대금(원). {date, 기관, 외국인} (개인 데이터는 미제공)"""
         day = date or await self.latest_trading_day()
@@ -194,6 +198,105 @@ class MarketDataClient:
         change = round((last - prev) / prev * 100, 2) if prev else 0.0
         self._cache.set(key, change, PRICE_TTL)
         return change
+
+    async def get_price_series(self, code: str, days: int = 60) -> list[dict]:
+        """일별 종가 시계열 (차트·스파크라인용). [{date, close, volume}]"""
+        from datetime import datetime, timedelta
+
+        end = await self.latest_trading_day()
+        key = f"mkt:series:{code}:{end}:{days}"
+        cached = self._cache.get(key)
+        if cached is not None:
+            return cached
+        start = (datetime.strptime(end, "%Y%m%d") - timedelta(days=int(days * 1.6))).strftime("%Y%m%d")
+        rows = await self._daily_rows(code, start, end)
+        series = [
+            {"date": str(r[0]), "close": float(r[4]), "volume": int(r[5])}
+            for r in rows
+        ][-days:]
+        self._cache.set(key, series, PRICE_TTL)
+        return series
+
+    async def get_stock_news(self, code: str, limit: int = 5) -> list[dict]:
+        """종목 뉴스 헤드라인. [{title, press, datetime, url}] — 제목만 사용(본문 미인용)."""
+        key = f"mkt:news:{code}"
+        cached = self._cache.get(key)
+        if cached is not None:
+            return cached[:limit]
+        try:
+            data = await self._get_json(
+                f"https://m.stock.naver.com/api/news/stock/{code}?pageSize={max(limit, 5)}"
+            )
+        except UpstreamError:
+            return []  # 뉴스는 보조 요인 — 실패해도 응답은 계속
+        items: list[dict] = []
+        for group in data if isinstance(data, list) else []:
+            for it in group.get("items", []):
+                office, article = it.get("officeId"), it.get("articleId")
+                items.append({
+                    "title": (it.get("title") or "").replace("&quot;", '"').strip(),
+                    "press": it.get("officeName", ""),
+                    "datetime": it.get("datetime", ""),
+                    "url": f"https://n.news.naver.com/article/{office}/{article}" if office and article else "",
+                })
+        self._cache.set(key, items, 600)  # 뉴스는 10분
+        return items[:limit]
+
+    async def get_intraday_quote(self, code: str) -> dict | None:
+        """장중 현재가 (지연 시세). {price, change_pct, market_status} — 실패 시 None."""
+        key = f"mkt:quote:{code}"
+        cached = self._cache.get(key)
+        if cached is not None:
+            return cached
+        try:
+            data = await self._get_json(f"https://m.stock.naver.com/api/stock/{code}/basic")
+        except UpstreamError:
+            return None
+        price = _num(data.get("closePrice"))
+        ratio = _num(data.get("fluctuationsRatio"))
+        if price is None:
+            return None
+        # 하락이면 fluctuationsRatio가 양수로 오는 경우 대비: compareToPreviousPrice 코드로 부호 결정
+        direction = ((data.get("compareToPreviousPrice") or {}).get("code") or "")
+        if ratio is not None and direction == "5":  # 5=하락
+            ratio = -abs(ratio)
+        result = {
+            "price": int(price),
+            "change_pct": ratio,
+            "market_status": data.get("marketStatus", ""),
+        }
+        self._cache.set(key, result, 60)  # 장중 시세는 1분
+        return result
+
+    async def get_industry_compare(self, code: str) -> dict | None:
+        """동종업계 비교. {industry_name, peers: [{name, code, change_pct}]} — 실패 시 None."""
+        key = f"mkt:industry:{code}"
+        cached = self._cache.get(key)
+        if cached is not None:
+            return cached
+        try:
+            data = await self._get_json(f"https://m.stock.naver.com/api/stock/{code}/integration")
+        except UpstreamError:
+            return None
+        peers = []
+        for item in (data.get("industryCompareInfo") or [])[:6]:
+            ratio = _num(item.get("fluctuationsRatio"))
+            direction = ((item.get("compareToPreviousPrice") or {}).get("code") or "")
+            if ratio is not None and direction == "5":
+                ratio = -abs(ratio)
+            peers.append({
+                "name": item.get("stockName", ""),
+                "code": item.get("itemCode", ""),
+                "change_pct": ratio,
+            })
+        researches = [
+            {"title": r.get("title", ""), "brokerName": r.get("brokerName", ""), "writeDate": r.get("writeDate", "")}
+            for r in (data.get("researches") or [])[:3]
+        ]
+        result = {"peers": peers, "researches": researches} if peers or researches else None
+        if result:
+            self._cache.set(key, result, PRICE_TTL)
+        return result
 
     async def get_market_of(self, code: str) -> str:
         key = f"mkt:market:{code}"

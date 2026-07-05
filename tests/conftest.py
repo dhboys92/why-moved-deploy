@@ -5,13 +5,14 @@ from unittest.mock import AsyncMock
 import pytest
 
 from why_moved.adapters.corp_codes import Corp
+from why_moved.cache.chart_store import ChartStore
 from why_moved.context import AppContext
 
 SAMSUNG = Corp(corp_code="00126380", stock_code="005930", name="삼성전자")
 
 
 @pytest.fixture
-def mock_ctx():
+def mock_ctx(tmp_path):
     """모든 어댑터가 AsyncMock인 컨텍스트. 테스트에서 반환값을 지정해 사용한다."""
     dart = AsyncMock()
     market = AsyncMock()
@@ -39,6 +40,15 @@ def mock_ctx():
     market.get_fundamental_snapshot.return_value = []
     market.latest_trading_day.return_value = "20260703"
 
+    # v1.1 신규 어댑터 기본값
+    market.get_stock_news.return_value = []
+    market.get_intraday_quote.return_value = None
+    market.get_industry_compare.return_value = None
+    market.get_price_series.return_value = [
+        {"date": f"202606{d:02d}", "close": 300000 + d * 1000, "volume": 1000} for d in range(1, 31)
+    ]
+    market.get_flow_rows.return_value = []
+
     dart.search_disclosures.return_value = []
     dart.get_financials.return_value = []
     dart.get_executive_holdings.return_value = []
@@ -46,4 +56,8 @@ def mock_ctx():
     kind.is_managed.return_value = False
     kind.is_unfaithful.return_value = False
 
-    return AppContext(dart=dart, market=market, kind=kind, resolver=resolver)
+    return AppContext(
+        dart=dart, market=market, kind=kind, resolver=resolver,
+        charts=ChartStore(str(tmp_path / "charts")),
+        public_base_url="http://testserver",
+    )

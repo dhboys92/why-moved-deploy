@@ -15,16 +15,20 @@ class Settings:
     http_timeout_seconds: float
     server_host: str
     server_port: int
+    public_base_url: str
 
     @staticmethod
     def from_env() -> "Settings":
+        port = int(os.environ.get("SERVER_PORT") or os.environ.get("PORT") or "8000")
         return Settings(
             dart_api_key=os.environ.get("DART_API_KEY", ""),
             cache_db_path=os.environ.get("CACHE_DB_PATH", "data/cache.db"),
             http_timeout_seconds=float(os.environ.get("HTTP_TIMEOUT_SECONDS", "5")),
             server_host=os.environ.get("SERVER_HOST", "0.0.0.0"),
             # PaaS(PlayMCP in KC 등)가 PORT를 주입하는 관례 지원
-            server_port=int(os.environ.get("SERVER_PORT") or os.environ.get("PORT") or "8000"),
+            server_port=port,
+            # 차트 URL 생성용 공개 베이스 URL (배포 시 환경변수로 지정)
+            public_base_url=os.environ.get("PUBLIC_BASE_URL", f"http://localhost:{port}").rstrip("/"),
         )
 
 

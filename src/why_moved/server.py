@@ -10,7 +10,7 @@ from typing import Any
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 from starlette.requests import Request
-from starlette.responses import JSONResponse
+from starlette.responses import FileResponse, JSONResponse, Response
 
 from why_moved import __version__
 from why_moved.common.envelope import contains_forbidden_phrase
@@ -159,6 +159,15 @@ async def screen_stocks_tool(condition: str, limit: int = 20) -> dict:
 @mcp.custom_route("/health", methods=["GET"])
 async def health(_request: Request) -> JSONResponse:
     return JSONResponse({"status": "ok", "service": "why-moved", "version": __version__})
+
+
+@mcp.custom_route("/charts/{chart_id}.png", methods=["GET"])
+async def chart(request: Request) -> Response:
+    """tool 응답의 chart_url이 가리키는 PNG 서빙."""
+    path = _context().charts.path(request.path_params["chart_id"])
+    if path is None:
+        return JSONResponse({"error": "chart not found (만료되었을 수 있어요)"}, status_code=404)
+    return FileResponse(path, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
 
 
 def main() -> None:

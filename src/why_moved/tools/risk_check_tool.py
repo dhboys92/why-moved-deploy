@@ -1,10 +1,12 @@
-"""[Hero #2, 공익] risk_check — 위험신호 진단 (설계 §2.2)."""
+"""[Hero #2, 공익] risk_check — 위험신호 진단 (설계 §2.2, v1.1: 요약 카드 이미지)."""
 
+import asyncio
 from dataclasses import asdict
 from datetime import datetime, timedelta
 
 from why_moved.common.envelope import dart_viewer_url, envelope, source
 from why_moved.context import AppContext
+from why_moved.engine import charts
 from why_moved.engine.financial_extract import extract_financials
 from why_moved.engine.risk_rules import (
     TOTAL_RULES,
@@ -59,6 +61,21 @@ async def risk_check(ctx: AppContext, query: str) -> dict:
         if s.rcept_no:
             sources.append(source(s.title, dart_viewer_url(s.rcept_no)))
 
+    # v1.1: 위험신호 요약 카드 이미지
+    chart_url = None
+    try:
+        key = ("risk_check", corp.stock_code, today, level, str(len(signals)))
+        chart_id = ctx.charts.exists(*key)
+        if chart_id is None:
+            png = await asyncio.to_thread(
+                charts.risk_card, corp.name, level,
+                [asdict(s) for s in signals], TOTAL_RULES,
+            )
+            chart_id = ctx.charts.save(png, *key)
+        chart_url = ctx.chart_url(chart_id)
+    except Exception:
+        pass
+
     payload = {
         "stock": {"name": corp.name, "code": corp.stock_code},
         "risk_level": level,
@@ -69,6 +86,8 @@ async def risk_check(ctx: AppContext, query: str) -> dict:
         ],
         "checked_rules": TOTAL_RULES,
         "unavailable_rules": unavailable,
+        "chart_url": chart_url,
+        "chart_hint": "chart_url은 위험 진단 요약 카드 이미지입니다. 사용자에게 보여주세요." if chart_url else None,
     }
     return envelope(payload, sources)
 

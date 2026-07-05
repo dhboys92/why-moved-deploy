@@ -1,13 +1,19 @@
-"""insider_signal — 스마트머니 피드 (설계 §2.5).
+"""insider_signal — 스마트머니 피드 (설계 §2.5, v1.1: 수급 차트·매매 사유 구분).
 
 DART 임원·주요주주 소유보고(≈美 Form 4) + 5% 대량보유(≈13F) + KRX 수급.
 법적으로 검증된 '진짜 돈'의 움직임만 다룬다.
 """
 
+import asyncio
 from datetime import datetime, timedelta
 
 from why_moved.common.envelope import dart_viewer_url, envelope, source
 from why_moved.context import AppContext
+from why_moved.engine import charts
+
+# 취득사유(sp_stock_lmp_irds_reason 계열)로 신호 강도 구분 — 장내매수가 진짜 신호
+_STRONG_BUY_REASONS = ("장내매수",)
+_WEAK_REASONS = ("스톡옵션", "주식매수선택권", "상속", "증여", "수증", "무상신주")
 
 
 async def insider_signal(ctx: AppContext, query: str, days: int = 30) -> dict:
@@ -40,11 +46,28 @@ async def insider_signal(ctx: AppContext, query: str, days: int = 30) -> dict:
     except Exception:
         pass
 
+    # v1.1: 수급×주가 차트
+    chart_url = None
+    try:
+        day = await ctx.market.latest_trading_day()
+        key = ("insider_signal", corp.stock_code, day)
+        chart_id = ctx.charts.exists(*key)
+        if chart_id is None:
+            series = await ctx.market.get_price_series(corp.stock_code, days=30)
+            flow_rows = await ctx.market.get_flow_rows(corp.stock_code, pages=2)
+            png = await asyncio.to_thread(charts.flow_with_price, corp.name, series, flow_rows)
+            chart_id = ctx.charts.save(png, *key)
+        chart_url = ctx.chart_url(chart_id)
+    except Exception:
+        pass
+
     payload = {
         "stock": {"name": corp.name, "code": corp.stock_code},
         "period_days": days,
         "events": events[:20],
         "institutional_flow": flow,
+        "chart_url": chart_url,
+        "chart_hint": "chart_url은 기관·외국인 순매수와 주가를 겹쳐 그린 이미지입니다. 사용자에게 보여주세요." if chart_url else None,
         "summary": _summary(corp.name, days, events, flow),
     }
     return envelope(payload, sources)
@@ -57,12 +80,23 @@ def _executive_event(row: dict, cut: str) -> dict | None:
     change = _num(row.get("sp_stock_lmp_irds_cnt"))
     if change == 0:
         return None
+    reason = (row.get("sp_stock_lmp_irds_reason") or row.get("change_reason") or "").strip()
+    signal_strength = "강함" if any(r in reason for r in _STRONG_BUY_REASONS) else (
+        "약함" if any(r in reason for r in _WEAK_REASONS) else "보통"
+    )
     return {
         "date": date,
         "who": row.get("repror", "임원·주요주주"),
         "role": row.get("isu_exctv_ofcps") or row.get("isu_main_shrholdr", ""),
         "action": "매수" if change > 0 else "매도",
         "shares": abs(int(change)),
+        "reason": reason or "사유 미표기",
+        "signal_strength": signal_strength,
+        "signal_note": (
+            "자기 돈으로 산 장내매수예요 — 통상 가장 의미 있게 보는 유형이에요."
+            if signal_strength == "강함"
+            else ("스톡옵션·상속 등 자동적 사유라 신호로서 의미는 약해요." if signal_strength == "약함" else "")
+        ),
         "kind": "임원·주요주주 소유보고",
         "source_url": dart_viewer_url(row.get("rcept_no", "")),
     }

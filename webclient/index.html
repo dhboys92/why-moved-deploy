@@ -317,6 +317,8 @@ function renderResult(result, ms) {
 
   if (data.error) { el.innerHTML = html + `<div class="r-card level-위험">${data.error}</div>`; return; }
   if (data.explanation) html += `<div class="r-explanation">${esc(data.explanation)}</div>`;
+  if (data.chart_url) html += `<div class="r-section"><h4>차트</h4><img src="${data.chart_url}" style="max-width:100%;border-radius:10px;border:1px solid var(--line)" alt="차트"></div>`;
+  if (data.scores_visual) html += `<div class="r-section"><h4>점수</h4><pre style="color:var(--accent);font-size:14px">${esc(data.scores_visual)}</pre></div>`;
   if (data.summary) html += `<div class="r-explanation">${esc(data.summary)}</div>`;
   if (data.narrative) html += `<div class="r-explanation"><span class="grade-badge">${data.grade || ''}</span>${esc(data.narrative)}</div>`;
   if (data.risk_level) html += `<div class="r-section"><h4>종합 판정</h4><div class="r-card">위험 등급: <b class="level-${data.risk_level}">${data.risk_level}</b> (룰 ${data.checked_rules}개 점검${data.unavailable_rules && data.unavailable_rules.length ? ', 확인불가: ' + data.unavailable_rules.join(',') : ''})</div></div>`;

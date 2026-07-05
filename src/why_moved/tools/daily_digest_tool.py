@@ -20,12 +20,25 @@ async def daily_digest(
 
     disclosures = await ctx.dart.search_disclosures(bgn_de=day, end_de=day, page_count=100)
 
+    # v1.1: 시총 상위 종목 가중 — 이미 캐시된 스냅샷이 있으면 활용 (없으면 1회 구축)
+    large_caps: set[str] = set()
+    try:
+        name_map = await ctx.resolver.name_map()
+        code_by_name = {v: k for k, v in name_map.items()}
+        snapshot = await ctx.market.get_fundamental_snapshot()
+        large_caps = {r["code"] for r in snapshot}
+    except Exception:
+        code_by_name = {}
+
     scored = []
     for d in disclosures:
         template = match_template(d.get("report_nm", ""))
         score = template.importance
-        if d.get("corp_name") in watch_names:
+        corp_name = d.get("corp_name", "")
+        if corp_name in watch_names:
             score += _WATCHLIST_BONUS
+        if code_by_name.get(corp_name) in large_caps:
+            score += 1  # 시총 상위(코스피·코스닥 각 200) 종목 공시 우선
         if score >= 3:
             scored.append((score, d, template))
     scored.sort(key=lambda x: x[0], reverse=True)
