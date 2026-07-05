@@ -168,20 +168,35 @@ def flow_with_price(
 
 
 def risk_card(name: str, level: str, signals: list[dict], checked: int) -> bytes:
-    """위험신호 요약 카드 (공유용)."""
-    height = 1.6 + 0.42 * max(len(signals), 1)
+    """위험신호 요약 카드 (공유용). 인치 단위로 배치해 신호 수와 무관하게 여백이 일정하다."""
+    rows = signals[:8] if signals else [None]
+    top, row_h, footer = 0.62, 0.34, 0.42  # inch: 헤더 / 신호 한 줄 / 푸터
+    height = top + 0.18 + row_h * len(rows) + footer
     fig = plt.figure(figsize=(6.4, height), dpi=150)
     fig.patch.set_facecolor(BG)
+
+    def y_frac(inches_from_top: float) -> float:
+        return 1 - inches_from_top / height
+
     color = _SEVERITY_COLOR.get(level, "#4ade80")
-    fig.text(0.05, 0.92, f"{name} 위험신호 진단", color=TEXT, fontsize=14, fontweight="bold", va="top")
-    fig.text(0.95, 0.92, level, color=color, fontsize=17, fontweight="bold", va="top", ha="right")
-    y = 0.92 - 1.0 / height * 0.9
-    if not signals:
-        fig.text(0.05, y, f"점검한 룰 {checked}개에서 위험신호가 발견되지 않았어요.", color="#4ade80", fontsize=10, va="top")
-    for s in signals[:8]:
-        c = _SEVERITY_COLOR.get(s.get("severity", "주의"), SUB)
-        fig.text(0.05, y, f"[{s.get('severity')}] {s.get('title')}", color=c, fontsize=10, va="top")
-        y -= 0.42 / height
-    fig.text(0.05, 0.04, f"룰 {checked}개 점검 · 출처: DART·KIND · 투자 권유가 아닙니다",
+    fig.text(0.05, y_frac(0.18), f"{name} 위험신호 진단", color=TEXT,
+             fontsize=14, fontweight="bold", va="top")
+    fig.text(0.95, y_frac(0.16), level, color=color, fontsize=17,
+             fontweight="bold", va="top", ha="right")
+    fig.add_artist(plt.Line2D([0.05, 0.95], [y_frac(top)] * 2,
+                              color="#3a3e43", linewidth=0.8, transform=fig.transFigure))
+
+    y_in = top + 0.18
+    for s in rows:
+        if s is None:
+            fig.text(0.05, y_frac(y_in), f"점검한 룰 {checked}개에서 위험신호가 발견되지 않았어요.",
+                     color="#4ade80", fontsize=10.5, va="top")
+        else:
+            c = _SEVERITY_COLOR.get(s.get("severity", "주의"), SUB)
+            fig.text(0.05, y_frac(y_in), f"[{s.get('severity')}] {s.get('title')}",
+                     color=c, fontsize=10.5, va="top")
+        y_in += row_h
+
+    fig.text(0.05, 0.12 / height, f"룰 {checked}개 점검 · 출처: DART·KIND · 투자 권유가 아닙니다",
              color=SUB, fontsize=7.5, va="bottom")
     return _to_png(fig)
