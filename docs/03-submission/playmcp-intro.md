@@ -75,6 +75,13 @@
 
 ---
 
+## 배포 정보 (2026-07-05 배포 완료)
+
+- **MCP Endpoint**: `https://why-moved.playmcp-endpoint.kakaocloud.io/mcp` (PlayMCP in KC, id 1472)
+- 배포 소스: `github.com/humanist96/why-moved-deploy` (private, DART 키 포함) — 공개 저장소는 `github.com/humanist96/kakao_mcp`
+- 원격 검증: 7개 tool 전체 MCP 프로토콜 호출 성공 (2026-07-05)
+- 다음: PlayMCP 개발자 콘솔(playmcp.kakao.com)에 위 Endpoint 등록 → 심사 요청 (7/8까지)
+
 ## 예선 접수 폼 답변 (forms.kakao.com, 2026-07-05 기준)
 
 | # | 항목 | 답변 |
