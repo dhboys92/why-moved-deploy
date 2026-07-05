@@ -8,6 +8,7 @@ import logging
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
@@ -28,6 +29,9 @@ logger = logging.getLogger("why_moved")
 
 mcp = FastMCP(
     "왜움직여",
+    # 공개 호스팅(PlayMCP in KC) 환경: 프록시 뒤에서 다양한 Host 헤더로 접근되므로
+    # localhost 전용 DNS 리바인딩 보호를 끈다 (로컬 비밀 없음, 공개 서비스)
+    transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
     instructions=(
         "주식 초보자를 위한 공시·시세 통역 도구입니다. "
         "모든 응답은 DART·KRX 공개 데이터의 사실 요약이며 투자 권유가 아닙니다. "
