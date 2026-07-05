@@ -39,11 +39,12 @@ class TestSafeWrapper:
 
 
 class TestToolRegistration:
-    async def test_all_seven_tools_registered(self):
+    async def test_all_nine_tools_registered(self):
         tools = {t.name for t in await mcp.list_tools()}
         assert tools == {
             "why_moved", "risk_check", "explain_disclosure", "stock_health",
             "insider_signal", "daily_digest", "screen_stocks",
+            "today_movers", "disclosure_quiz",
         }
 
     async def test_tool_descriptions_have_examples(self):

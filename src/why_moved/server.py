@@ -18,7 +18,9 @@ from why_moved.common.errors import WhyMovedError
 from why_moved.config import get_settings
 from why_moved.context import AppContext, build_context
 from why_moved.tools.daily_digest_tool import daily_digest
+from why_moved.tools.disclosure_quiz_tool import disclosure_quiz
 from why_moved.tools.explain_disclosure_tool import explain_disclosure
+from why_moved.tools.today_movers_tool import today_movers
 from why_moved.tools.insider_signal_tool import insider_signal
 from why_moved.tools.risk_check_tool import risk_check
 from why_moved.tools.screen_stocks_tool import screen_stocks
@@ -41,7 +43,9 @@ mcp = FastMCP(
         "3) suggested_questions가 있으면 답변 끝에 그중 1~2개를 '이어서 물어보세요'로 제안하세요.\n"
         "4) 사용자는 주식 초보자입니다. 전문용어는 terms의 쉬운 설명을 활용해 풀어 말하고, "
         "특정 종목의 매수·매도를 권하지 마세요.\n"
-        "5) 응답에 candidates가 있으면 어느 종목인지 사용자에게 되물어 주세요."
+        "5) 응답에 candidates가 있으면 어느 종목인지 사용자에게 되물어 주세요.\n"
+        "6) disclosure_quiz는 대화형 퀴즈입니다 — quiz_hint의 진행 방식을 반드시 따르고 "
+        "정답을 미리 공개하지 마세요."
     ),
 )
 
@@ -165,6 +169,32 @@ async def daily_digest_tool(date: str | None = None, watchlist: list[str] | None
 async def screen_stocks_tool(condition: str, limit: int = 20) -> dict:
     """condition: 자연어 조건. limit: 최대 결과 수(기본 20)."""
     return await _safe(screen_stocks(_context(), condition, limit))
+
+
+@mcp.tool(
+    name="today_movers",
+    description=(
+        "오늘의 급등/급락 상위 종목을 자동 스캔해 각각의 원인(공시·뉴스)을 한 번에 해부합니다. "
+        "데일리 시장 브리핑용. direction: up(급등)|down(급락). "
+        "예: '오늘 뭐가 왜 올랐어?', '오늘 급락한 종목들 이유 알려줘'"
+    ),
+)
+async def today_movers_tool(direction: str = "up") -> dict:
+    """direction: up(급등, 기본) 또는 down(급락)."""
+    return await _safe(today_movers(_context(), direction))
+
+
+@mcp.tool(
+    name="disclosure_quiz",
+    description=(
+        "오늘 실제로 나온 공시로 3지선다 공시 문해력 퀴즈를 냅니다. 재미있게 공시 읽는 법을 "
+        "배우는 교육 콘텐츠. topic으로 특정 유형(예: 유상증자) 지정 가능. "
+        "예: '공시 퀴즈 하나 내줘', '유상증자 퀴즈 내줘'"
+    ),
+)
+async def disclosure_quiz_tool(topic: str = "") -> dict:
+    """topic: 공시 유형 필터 (선택, 예: '유상증자')."""
+    return await _safe(disclosure_quiz(_context(), topic))
 
 
 @mcp.custom_route("/health", methods=["GET"])

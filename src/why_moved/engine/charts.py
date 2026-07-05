@@ -168,6 +168,30 @@ def flow_with_price(
     return _to_png(fig)
 
 
+def movers_bar(movers: list[dict], direction: str, day: str) -> bytes:
+    """급등/급락 상위 종목 가로 막대 차트. movers: [{name, change_pct, market}]"""
+    movers = movers[:10][::-1]  # 위에서 아래로 1위가 위에 오게 뒤집기
+    names = [f"{m['name']} ({m['market']})" for m in movers]
+    values = [m["change_pct"] for m in movers]
+    y = np.arange(len(movers))
+
+    fig, ax = _fig(7.6, 0.6 + 0.42 * len(movers))
+    colors = [UP if v >= 0 else DOWN for v in values]
+    ax.barh(y, values, color=colors, height=0.62)
+    for i, v in enumerate(values):
+        ax.text(v + (0.3 if v >= 0 else -0.3), i, f"{v:+.1f}%",
+                va="center", ha="left" if v >= 0 else "right",
+                color=TEXT, fontsize=9)
+    ax.set_yticks(y)
+    ax.set_yticklabels(names, fontsize=9.5)
+    ax.margins(x=0.15)
+    title = "급등" if direction == "up" else "급락"
+    ax.set_title(f"오늘의 {title} TOP {len(movers)} — {day[4:6]}/{day[6:]} (스팩·ETF 제외)",
+                 color=TEXT, fontsize=11.5, pad=10)
+    ax.grid(axis="x", color="#2a2d31", linewidth=0.5)
+    return _to_png(fig)
+
+
 def risk_card(name: str, level: str, signals: list[dict], checked: int) -> bytes:
     """위험신호 요약 카드 (공유용). 인치 단위로 배치해 신호 수와 무관하게 여백이 일정하다."""
     rows = signals[:8] if signals else [None]

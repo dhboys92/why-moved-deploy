@@ -205,6 +205,29 @@ class TestMarketDataClient:
         with pytest.raises(UpstreamError):
             await m.get_price_move("005930", "20260703")
 
+    @respx.mock
+    async def test_top_movers_filters_spac_and_etf(self, cache):
+        def payload(stocks):
+            return httpx.Response(200, json={"stocks": stocks})
+
+        respx.get(url__startswith="https://m.stock.naver.com/api/stocks/up/KOSPI").mock(
+            return_value=payload([
+                {"stockEndType": "stock", "stockName": "급등전자", "itemCode": "000001",
+                 "fluctuationsRatio": "29.9", "closePrice": "1,000",
+                 "compareToPreviousPrice": {"code": "1"}},
+                {"stockEndType": "stock", "stockName": "하나스팩10호", "itemCode": "000002",
+                 "fluctuationsRatio": "25.0", "closePrice": "2,000"},
+                {"stockEndType": "etf", "stockName": "KODEX 레버리지", "itemCode": "000003",
+                 "fluctuationsRatio": "20.0", "closePrice": "3,000"},
+            ])
+        )
+        respx.get(url__startswith="https://m.stock.naver.com/api/stocks/up/KOSDAQ").mock(
+            return_value=payload([])
+        )
+        m = MarketDataClient(cache)
+        movers = await m.get_top_movers("up")
+        assert [x["name"] for x in movers] == ["급등전자"]  # 스팩·ETF 제외
+
 
 _KIND_HTML = """<table>
 <tr><td><a onclick="companysummary_open('123456')">부실기업</a></td></tr>

@@ -157,6 +157,16 @@ const EXAMPLES = {
     { label: '지난 금요일 공시 정리해줘', args: { date: lastFriday() } },
     { label: '2차전지 관심종목 공시 알려줘', args: { watchlist: ['에코프로', 'LG에너지솔루션', '삼성SDI'] } },
   ],
+  today_movers: [
+    { label: '오늘 뭐가 왜 올랐어?', args: { direction: 'up' } },
+    { label: '오늘 급락한 종목들 이유 알려줘', args: { direction: 'down' } },
+    { label: '오늘의 급등주 해부해줘', args: { direction: 'up' } },
+  ],
+  disclosure_quiz: [
+    { label: '공시 퀴즈 하나 내줘!', args: {} },
+    { label: '유상증자 퀴즈 내줘', args: { topic: '유상증자' } },
+    { label: '오늘 공시로 문제 내봐', args: {} },
+  ],
   screen_stocks: [
     { label: '배당 4% 이상 PBR 1 이하 코스피 찾아줘', args: { condition: '배당수익률 4% 이상 PBR 1 이하 코스피' } },
     { label: 'PER 10배 이하 저평가주 보여줘', args: { condition: 'PER 10 이하' } },
@@ -344,6 +354,13 @@ function renderResult(result, ms) {
   html += renderCards('내부자·큰손 이벤트', data.events, e2 => `${e2.date} <b>${esc(e2.who)}</b> ${esc(e2.role || '')} — <b>${e2.action}</b> ${e2.shares ? e2.shares.toLocaleString() + '주' : ''} <a href="${e2.source_url}" target="_blank">원문↗</a>`);
   html += renderCards('주요 공시', data.top_disclosures, d => `<b>${esc(d.company)}</b> [${esc(d.type)}] ${esc(d.title)}<br>· 무슨 일이야? ${esc(d.what_happened)}<br>· 그래서 뭐? ${esc(d.so_what)}<br>· 나랑 무슨 상관? ${esc(d.why_care)} <a href="${d.url}" target="_blank">원문↗</a>`);
   html += renderCards('검색 결과', data.results, r => `<b>${esc(r.name)}</b> (${r.code}, ${r.market}) — 종가 ${r.close ? r.close.toLocaleString() : '?'}원, PER ${r.per ?? '—'}, PBR ${r.pbr ?? '—'}, 배당 ${r.div ?? '—'}%`);
+  html += renderCards('급등락 해부', data.movers, m => `<b>${esc(m.name)}</b> (${m.market}) <b class="${m.change_pct >= 0 ? 'level-위험' : ''}" style="color:${m.change_pct >= 0 ? 'var(--danger)' : '#60a5fa'}">${m.change_pct >= 0 ? '+' : ''}${m.change_pct}%</b> · ${m.close ? m.close.toLocaleString() + '원' : ''}<br>` + (m.reasons && m.reasons.length ? m.reasons.map(r => `· ${esc(r.summary)} ${r.source_url ? `<a href="${r.source_url}" target="_blank">원문↗</a>` : ''}`).join('<br>') : '· 뚜렷한 공개 요인 없음 — 테마성일 수 있어요'));
+  if (data.question) {
+    html += `<div class="r-explanation">${esc(data.question)}</div><div class="r-section"><h4>선지</h4>` +
+      Object.entries(data.choices || {}).map(([k, v]) => `<div class="r-card"><b style="color:var(--accent)">${k}</b>  ${esc(v)}</div>`).join('') + `</div>` +
+      `<details class="raw"><summary>정답 보기 (실제 카톡에서는 AI가 대화형으로 채점해요)</summary><div class="r-card" style="margin-top:8px">${esc(data.explanation || '')}</div></details>`;
+    if (data.disclosure) html += `<div class="r-section"><div class="r-card">출제 공시: <b>${esc(data.disclosure.company)}</b> — ${esc(data.disclosure.title)} <a href="${data.disclosure.url}" target="_blank">원문↗</a></div></div>`;
+  }
   if (data.disclosure) html += `<div class="r-section"><h4>공시 통역</h4><div class="r-card"><b>${esc(data.disclosure.company)}</b> — ${esc(data.disclosure.title)} (${data.disclosure.date}) <a href="${data.disclosure.url}" target="_blank">원문↗</a><br><br>· <b>무슨 일이야?</b> ${esc(data.what_happened)}<br>· <b>그래서 뭐?</b> ${esc(data.so_what)}<br>· <b>나랑 무슨 상관?</b> ${esc(data.why_care)}</div></div>`;
   html += renderCards('용어 풀이', data.terms, t => `<b>${esc(t.term)}</b>: ${esc(t.easy_def)}`);
   if (data.checks) html += renderCards('체크리스트', data.checks, c => `${c.passed ? '✅' : '❌'} ${esc(c.name)} — ${esc(c.easy_explanation)}`);

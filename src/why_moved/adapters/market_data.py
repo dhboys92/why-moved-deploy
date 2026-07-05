@@ -268,6 +268,44 @@ class MarketDataClient:
         self._cache.set(key, result, 60)  # 장중 시세는 1분
         return result
 
+    async def get_top_movers(self, direction: str = "up", limit: int = 10) -> list[dict]:
+        """급등/급락 상위 종목 (KOSPI+KOSDAQ 병합). [{name, code, market, change_pct, close}]
+
+        일반 주식만 (ETF·ETN·스팩 제외). direction: up | down
+        """
+        key = f"mkt:movers:{direction}"
+        cached = self._cache.get(key)
+        if cached is not None:
+            return cached[:limit]
+
+        movers: list[dict] = []
+        for market in ("KOSPI", "KOSDAQ"):
+            try:
+                data = await self._get_json(
+                    f"https://m.stock.naver.com/api/stocks/{direction}/{market}?page=1&pageSize=20"
+                )
+            except UpstreamError:
+                continue
+            for item in data.get("stocks", []):
+                name = item.get("stockName", "")
+                if item.get("stockEndType") != "stock" or "스팩" in name:
+                    continue
+                ratio = _num(item.get("fluctuationsRatio"))
+                if ratio is None:
+                    continue
+                if direction == "down":
+                    ratio = -abs(ratio)
+                movers.append({
+                    "name": name,
+                    "code": item.get("itemCode", ""),
+                    "market": market,
+                    "change_pct": ratio,
+                    "close": int(_num(item.get("closePrice")) or 0),
+                })
+        movers.sort(key=lambda m: abs(m["change_pct"]), reverse=True)
+        self._cache.set(key, movers, 600)  # 10분
+        return movers[:limit]
+
     async def get_industry_compare(self, code: str) -> dict | None:
         """동종업계 비교. {industry_name, peers: [{name, code, change_pct}]} — 실패 시 None."""
         key = f"mkt:industry:{code}"
