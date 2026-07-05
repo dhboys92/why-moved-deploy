@@ -25,6 +25,12 @@ class AppContext:
         return f"{self.public_base_url}/charts/{chart_id}.png"
 
 
+def _app_version() -> str:
+    from why_moved import __version__
+
+    return __version__
+
+
 def build_context(settings: Settings) -> AppContext:
     cache = TTLCache(settings.cache_db_path)
     charts_dir = str(Path(settings.cache_db_path).parent / "charts")
@@ -33,6 +39,6 @@ def build_context(settings: Settings) -> AppContext:
         market=MarketDataClient(cache, settings.http_timeout_seconds),
         kind=KindClient(cache, settings.http_timeout_seconds),
         resolver=CorpCodeResolver(settings.dart_api_key, cache),
-        charts=ChartStore(charts_dir),
+        charts=ChartStore(charts_dir, salt=_app_version()),
         public_base_url=settings.public_base_url,
     )

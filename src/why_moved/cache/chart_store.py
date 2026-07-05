@@ -8,12 +8,13 @@ _TTL_SECONDS = 86400
 
 
 class ChartStore:
-    def __init__(self, base_dir: str):
+    def __init__(self, base_dir: str, salt: str = ""):
         self._dir = Path(base_dir)
         self._dir.mkdir(parents=True, exist_ok=True)
+        self._salt = salt  # 앱 버전 등 — 릴리스마다 URL이 바뀌어 브라우저 캐시를 무효화한다
 
     def chart_id(self, *key_parts: str) -> str:
-        return hashlib.sha1(":".join(key_parts).encode()).hexdigest()[:16]
+        return hashlib.sha1(":".join((self._salt, *key_parts)).encode()).hexdigest()[:16]
 
     def save(self, png: bytes, *key_parts: str) -> str:
         """PNG 저장 후 chart_id 반환. 동일 키는 덮어쓴다 (결정적 캐시)."""
