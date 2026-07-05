@@ -315,7 +315,15 @@ function renderResult(result, ms) {
   const el = document.getElementById('result');
   let html = `<div style="color:var(--sub);font-size:12px;margin-bottom:10px">응답 ${(ms/1000).toFixed(1)}초</div>`;
 
-  if (data.error) { el.innerHTML = html + `<div class="r-card level-위험">${data.error}</div>`; return; }
+  if (data.error) {
+    html += `<div class="r-card level-위험">${esc(data.error)}</div>`;
+    if (data.candidates) {
+      html += `<div class="r-section"><h4>이 중에 찾으시나요?</h4><div style="display:flex;flex-wrap:wrap;gap:8px">` +
+        data.candidates.map(c => `<button class="chip" onclick='selectTool(currentTool.name, {query: ${JSON.stringify(c)}}); runTool();'>${esc(c)}</button>`).join('') + `</div></div>`;
+    }
+    el.innerHTML = html;
+    return;
+  }
   if (data.explanation) html += `<div class="r-explanation">${esc(data.explanation)}</div>`;
   if (data.chart_url) html += `<div class="r-section"><h4>차트</h4><img src="${data.chart_url}" style="max-width:100%;border-radius:10px;border:1px solid var(--line)" alt="차트"></div>`;
   html += renderCards('차트 공시 번호', data.chart_events, ev => `<b style="color:var(--accent)">${ev.no}</b>  ${ev.date} [${esc(ev.type)}] ${esc(ev.title)} <a href="${ev.url}" target="_blank">원문↗</a>`);
@@ -339,6 +347,12 @@ function renderResult(result, ms) {
   if (data.disclosure) html += `<div class="r-section"><h4>공시 통역</h4><div class="r-card"><b>${esc(data.disclosure.company)}</b> — ${esc(data.disclosure.title)} (${data.disclosure.date}) <a href="${data.disclosure.url}" target="_blank">원문↗</a><br><br>· <b>무슨 일이야?</b> ${esc(data.what_happened)}<br>· <b>그래서 뭐?</b> ${esc(data.so_what)}<br>· <b>나랑 무슨 상관?</b> ${esc(data.why_care)}</div></div>`;
   html += renderCards('용어 풀이', data.terms, t => `<b>${esc(t.term)}</b>: ${esc(t.easy_def)}`);
   if (data.checks) html += renderCards('체크리스트', data.checks, c => `${c.passed ? '✅' : '❌'} ${esc(c.name)} — ${esc(c.easy_explanation)}`);
+  if (data.fallback_note) html += `<div class="r-section"><div class="r-card" style="color:var(--warn,#fbbf24)">${esc(data.fallback_note)}</div></div>`;
+  if (data.privacy_note) html += `<div class="r-section"><div class="r-card" style="color:var(--sub)">${esc(data.privacy_note)}</div></div>`;
+  if (data.suggested_questions && data.suggested_questions.length) {
+    html += `<div class="r-section"><h4>이어서 물어보세요</h4><div style="display:flex;flex-wrap:wrap;gap:8px">` +
+      data.suggested_questions.map(q => `<span class="chip" style="cursor:default">💬 ${esc(q)}</span>`).join('') + `</div></div>`;
+  }
   if (data.note) html += `<div class="r-section"><div class="r-card">${esc(data.note)}</div></div>`;
   if (data.market_note) html += `<div class="r-section"><div class="r-card">${esc(data.market_note)}</div></div>`;
   if (data.sources && data.sources.length) html += renderCards('출처', data.sources, s => `<a href="${s.url}" target="_blank">${esc(s.title)}</a> ${s.date || ''}`);
