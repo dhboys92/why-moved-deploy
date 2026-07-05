@@ -55,9 +55,9 @@ def _fmt_date(yyyymmdd: str) -> str:
 def price_with_disclosures(
     name: str,
     series: list[dict],          # [{date, close, volume}]
-    disclosures: list[dict],     # [{rcept_dt, type_name}] — 중요 공시만
+    disclosures: list[dict],     # [{rcept_dt, type_name, no}] — 번호 붙은 중요 공시
 ) -> bytes:
-    """[Hero] 가격 라인 + 공시 이벤트 마커 — '공시와 주가를 한 장에'."""
+    """[Hero] 가격 라인 + 번호 공시 마커 — 번호는 응답의 chart_events와 1:1 대응한다."""
     dates = [s["date"] for s in series]
     closes = [s["close"] for s in series]
     x = np.arange(len(dates))
@@ -67,26 +67,26 @@ def price_with_disclosures(
     ax.plot(x, closes, color=color, linewidth=1.8)
     ax.fill_between(x, closes, min(closes), color=color, alpha=0.08)
 
-    # 공시 마커 — 같은 유형은 첫 발생만 라벨 (라벨 겹침 방지)
+    # 날짜별로 이벤트 번호를 묶어 마커 하나 + 번호 라벨로 표시
     date_index = {d: i for i, d in enumerate(dates)}
-    labeled_types: set[str] = set()
-    label_count = 0
-    for dis in disclosures[:12]:
+    by_date: dict[int, list[int]] = {}
+    for dis in disclosures:
         idx = date_index.get(dis.get("rcept_dt", ""))
-        if idx is None:
-            continue
+        if idx is not None and dis.get("no"):
+            by_date.setdefault(idx, []).append(dis["no"])
+
+    for idx, numbers in by_date.items():
         y = closes[idx]
         ax.scatter([idx], [y], color=ACCENT, zorder=5, s=42, marker="v")
-        type_name = dis.get("type_name", "공시")
-        if type_name in labeled_types or label_count >= 4:
-            continue
-        labeled_types.add(type_name)
-        label_count += 1
+        label = "·".join(str(n) for n in sorted(numbers)[:3])
+        if len(numbers) > 3:
+            label += "+"
         ax.annotate(
-            type_name, (idx, y),
-            textcoords="offset points", xytext=(0, 14),
-            ha="center", fontsize=7.5, color=ACCENT,
-            clip_on=True,
+            label, (idx, y),
+            textcoords="offset points", xytext=(0, 11),
+            ha="center", fontsize=9, color="#111111", fontweight="bold",
+            bbox={"boxstyle": "circle,pad=0.18", "facecolor": ACCENT, "edgecolor": "none"},
+            zorder=6, clip_on=False,
         )
 
     step = max(1, len(dates) // 6)
@@ -94,9 +94,10 @@ def price_with_disclosures(
     ax.set_xticklabels([_fmt_date(d) for d in dates[::step]])
     change = (closes[-1] - closes[0]) / closes[0] * 100 if closes[0] else 0
     ax.set_title(
-        f"{name} — 최근 {len(dates)}거래일 {change:+.1f}%   ▼=공시 발생",
+        f"{name} — 최근 {len(dates)}거래일 {change:+.1f}%   ▼번호=공시 (아래 목록 참조)",
         color=TEXT, fontsize=11, pad=10,
     )
+    ax.margins(y=0.12)  # 번호 라벨이 위로 튀어나올 공간
     ax.grid(axis="y", color="#2a2d31", linewidth=0.5)
     return _to_png(fig)
 

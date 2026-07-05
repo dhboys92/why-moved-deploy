@@ -58,7 +58,10 @@ class TestCharts:
 
     def test_price_with_disclosures(self):
         png = charts.price_with_disclosures(
-            "테스트", _SERIES, [{"rcept_dt": "20260610", "type_name": "유상증자"}]
+            "테스트", _SERIES,
+            [{"rcept_dt": "20260610", "type_name": "유상증자", "no": 1},
+             {"rcept_dt": "20260610", "type_name": "전환사채 발행", "no": 2},
+             {"rcept_dt": "20260615", "type_name": "합병", "no": 3}],
         )
         self._assert_png(png)
 
@@ -88,6 +91,20 @@ class TestToolChartIntegration:
         result = await why_moved(mock_ctx, "삼성전자")
         assert result["chart_url"].startswith("http://testserver/charts/")
         assert result["trend_sparkline_30d"]
+
+    async def test_chart_events_map_to_markers(self, mock_ctx):
+        from why_moved.tools.why_moved_tool import why_moved
+
+        mock_ctx.dart.search_disclosures.return_value = [
+            {"rcept_no": "1", "report_nm": "주요사항보고서(유상증자결정)", "rcept_dt": "20260610"},
+            {"rcept_no": "2", "report_nm": "전환사채권발행결정", "rcept_dt": "20260615"},
+        ]
+        result = await why_moved(mock_ctx, "삼성전자")
+        events = result["chart_events"]
+        assert [e["no"] for e in events] == [1, 2]
+        assert events[0]["type"] == "유상증자"
+        assert events[0]["url"].startswith("https://dart.fss.or.kr")
+        assert "chart_events" in result["chart_hint"]
 
     async def test_stock_health_scores_visual(self, mock_ctx):
         from why_moved.tools.stock_health_tool import stock_health

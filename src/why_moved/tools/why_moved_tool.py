@@ -104,13 +104,13 @@ async def why_moved(ctx: AppContext, query: str, date: str | None = None) -> dic
             "거래되고 있어요 (지연 시세)."
         )
 
-    # 스파크라인 + 가격×공시 차트 (v1.1)
-    series, spark, chart_url = [], "", None
+    # 스파크라인 + 가격×공시 차트 (v1.1) — 마커 번호와 chart_events가 1:1 대응
+    series, spark, chart_url, chart_events = [], "", None, []
     try:
         series = await ctx.market.get_price_series(corp.stock_code, days=60)
         closes = [s["close"] for s in series]
         spark = sparkline(closes[-30:])
-        chart_url = await _price_chart(ctx, corp, day, series, bgn_days=60)
+        chart_url, chart_events = await _price_chart(ctx, corp, day, series, bgn_days=60)
     except Exception:
         pass  # 차트는 부가 요소 — 실패해도 응답은 계속
 
@@ -123,7 +123,12 @@ async def why_moved(ctx: AppContext, query: str, date: str | None = None) -> dic
         "factors": factors,
         "trend_sparkline_30d": spark or None,
         "chart_url": chart_url,
-        "chart_hint": "chart_url은 최근 60일 주가와 공시 발생 시점을 표시한 이미지입니다. 사용자에게 보여주세요." if chart_url else None,
+        "chart_events": chart_events or None,
+        "chart_hint": (
+            "chart_url은 최근 60일 주가 차트이며, 차트 위 번호 마커는 chart_events의 no와 1:1 대응합니다. "
+            "이미지와 함께 번호별 공시 목록을 사용자에게 보여주세요."
+            if chart_url else None
+        ),
         "investor_flow": (
             {"date": flow["date"], "외국인": flow["외국인"], "기관": flow["기관"],
              "note": "순매매 주식수 × 종가 추정대금이에요. 개인 수급은 제공되지 않아요."}
@@ -135,24 +140,42 @@ async def why_moved(ctx: AppContext, query: str, date: str | None = None) -> dic
     return envelope(payload, sources)
 
 
-async def _price_chart(ctx: AppContext, corp, day: str, series: list[dict], bgn_days: int) -> str | None:
-    """최근 60일 가격 + 공시 마커 차트 생성 (동일 조건은 캐시 재사용)."""
-    key = ("why_moved", corp.stock_code, day)
-    cached = ctx.charts.exists(*key)
-    if cached:
-        return ctx.chart_url(cached)
+async def _price_chart(
+    ctx: AppContext, corp, day: str, series: list[dict], bgn_days: int
+) -> tuple[str | None, list[dict]]:
+    """최근 60일 가격 + 번호 공시 마커 차트. (chart_url, chart_events) 반환.
 
+    chart_events의 no가 차트 위 번호 마커와 1:1 대응한다 — 마커가 어떤 공시인지
+    원문 링크까지 연결하기 위한 범례 데이터.
+    """
     bgn = (datetime.strptime(day, "%Y%m%d") - timedelta(days=bgn_days)).strftime("%Y%m%d")
     window_disclosures = await ctx.dart.search_disclosures(
         corp_code=corp.corp_code, bgn_de=bgn, end_de=day
     )
-    markers = [
-        {"rcept_dt": d["rcept_dt"], "type_name": match_template(d["report_nm"]).type_name}
-        for d in window_disclosures
+    important = [
+        d for d in window_disclosures
         if match_template(d.get("report_nm", "")).importance >= 3
     ]
+    important.sort(key=lambda d: d.get("rcept_dt", ""))  # 시간순 번호
+    events = [
+        {
+            "no": i + 1,
+            "date": d["rcept_dt"],
+            "type": match_template(d["report_nm"]).type_name,
+            "title": d["report_nm"].strip(),
+            "url": dart_viewer_url(d["rcept_no"]),
+        }
+        for i, d in enumerate(important[:9])
+    ]
+
+    key = ("why_moved", corp.stock_code, day)
+    cached = ctx.charts.exists(*key)
+    if cached:
+        return ctx.chart_url(cached), events
+
+    markers = [{"rcept_dt": e["date"], "type_name": e["type"], "no": e["no"]} for e in events]
     png = await asyncio.to_thread(charts.price_with_disclosures, corp.name, series, markers)
-    return ctx.chart_url(ctx.charts.save(png, *key))
+    return ctx.chart_url(ctx.charts.save(png, *key)), events
 
 
 def _build_explanation(

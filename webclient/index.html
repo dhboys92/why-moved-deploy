@@ -318,6 +318,7 @@ function renderResult(result, ms) {
   if (data.error) { el.innerHTML = html + `<div class="r-card level-위험">${data.error}</div>`; return; }
   if (data.explanation) html += `<div class="r-explanation">${esc(data.explanation)}</div>`;
   if (data.chart_url) html += `<div class="r-section"><h4>차트</h4><img src="${data.chart_url}" style="max-width:100%;border-radius:10px;border:1px solid var(--line)" alt="차트"></div>`;
+  html += renderCards('차트 공시 번호', data.chart_events, ev => `<b style="color:var(--accent)">${ev.no}</b>  ${ev.date} [${esc(ev.type)}] ${esc(ev.title)} <a href="${ev.url}" target="_blank">원문↗</a>`);
   if (data.scores_visual) html += `<div class="r-section"><h4>점수</h4><pre style="color:var(--accent);font-size:14px">${esc(data.scores_visual)}</pre></div>`;
   if (data.summary) html += `<div class="r-explanation">${esc(data.summary)}</div>`;
   if (data.narrative) html += `<div class="r-explanation"><span class="grade-badge">${data.grade || ''}</span>${esc(data.narrative)}</div>`;
