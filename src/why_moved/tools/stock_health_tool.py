@@ -76,6 +76,10 @@ async def stock_health(ctx: AppContext, query: str) -> dict:
         "chart_url": chart_url,
         "chart_hint": "chart_url은 5축 레이더 차트 이미지입니다. 사용자에게 보여주세요." if chart_url else None,
         "industry_note": peers_note,
+        "suggested_questions": [
+            f"{corp.name}이(가) 오늘 왜 움직였는지 볼까요?",
+            f"{corp.name} 위험신호 15가지 점검도 해볼까요?",
+        ],
         "checks": [asdict(c) for c in checks],
         "data_basis": {
             "fiscal_period": f"{fiscal_year}년 사업보고서" if fiscal_year else "재무 데이터 없음",

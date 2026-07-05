@@ -69,6 +69,11 @@ async def insider_signal(ctx: AppContext, query: str, days: int = 30) -> dict:
         "chart_url": chart_url,
         "chart_hint": "chart_url은 기관·외국인 순매수와 주가를 겹쳐 그린 이미지입니다. 사용자에게 보여주세요." if chart_url else None,
         "summary": _summary(corp.name, days, events, flow),
+        "privacy_note": "임원·주요주주의 성명과 매매 내역은 자본시장법에 따라 DART에 의무 공시된 공개 정보입니다.",
+        "suggested_questions": [
+            f"{corp.name}이(가) 최근 왜 움직였는지 볼까요?",
+            f"{corp.name} 위험신호도 점검해볼까요?",
+        ],
     }
     return envelope(payload, sources)
 

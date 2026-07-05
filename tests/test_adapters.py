@@ -85,7 +85,9 @@ def _corp_zip() -> bytes:
     xml = """<?xml version="1.0" encoding="UTF-8"?>
     <result>
       <list><corp_code>00126380</corp_code><corp_name>삼성전자</corp_name><stock_code>005930</stock_code></list>
+      <list><corp_code>00126390</corp_code><corp_name>삼성물산</corp_name><stock_code>028260</stock_code></list>
       <list><corp_code>00164742</corp_code><corp_name>현대자동차</corp_name><stock_code>005380</stock_code></list>
+      <list><corp_code>00266961</corp_code><corp_name>NAVER</corp_name><stock_code>035420</stock_code></list>
       <list><corp_code>99999999</corp_code><corp_name>비상장회사</corp_name><stock_code> </stock_code></list>
     </result>"""
     buf = io.BytesIO()
@@ -123,6 +125,38 @@ class TestCorpCodeResolver:
         resolver = CorpCodeResolver("key", cache)
         corp = await resolver.resolve("현대자동")
         assert corp.name == "현대자동차"
+
+    @respx.mock
+    async def test_alias_naver(self, cache):
+        respx.get(url__startswith="https://opendart.fss.or.kr/api/corpCode.xml").mock(
+            return_value=httpx.Response(200, content=_corp_zip())
+        )
+        resolver = CorpCodeResolver("key", cache)
+        assert (await resolver.resolve("네이버")).name == "NAVER"
+        assert (await resolver.resolve("naver")).name == "NAVER"
+
+    @respx.mock
+    async def test_ambiguous_returns_candidates(self, cache):
+        from why_moved.common.errors import AmbiguousStockError
+
+        respx.get(url__startswith="https://opendart.fss.or.kr/api/corpCode.xml").mock(
+            return_value=httpx.Response(200, content=_corp_zip())
+        )
+        resolver = CorpCodeResolver("key", cache)
+        with pytest.raises(AmbiguousStockError) as exc_info:
+            await resolver.resolve("삼성")
+        assert set(exc_info.value.candidates) == {"삼성전자", "삼성물산"}
+
+    @respx.mock
+    async def test_etf_guidance(self, cache):
+        from why_moved.common.errors import EtfNotSupportedError
+
+        respx.get(url__startswith="https://opendart.fss.or.kr/api/corpCode.xml").mock(
+            return_value=httpx.Response(200, content=_corp_zip())
+        )
+        resolver = CorpCodeResolver("key", cache)
+        with pytest.raises(EtfNotSupportedError):
+            await resolver.resolve("KODEX 200")
 
 
 _SISE_BODY = """[['날짜', '시가', '고가', '저가', '종가', '거래량', '외국인소진율'],

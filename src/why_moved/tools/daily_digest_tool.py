@@ -20,6 +20,24 @@ async def daily_digest(
 
     disclosures = await ctx.dart.search_disclosures(bgn_de=day, end_de=day, page_count=100)
 
+    # 휴장일 폴백: 오늘 공시가 없으면 최근 거래일 공시로 (주말·공휴일 심사/사용 대비)
+    fallback_note = None
+    if not disclosures and date is None:
+        try:
+            trading_day = await ctx.market.latest_trading_day()
+        except Exception:
+            trading_day = None
+        if trading_day and trading_day != day:
+            disclosures = await ctx.dart.search_disclosures(
+                bgn_de=trading_day, end_de=trading_day, page_count=100
+            )
+            if disclosures:
+                fallback_note = (
+                    f"오늘({day[4:6]}/{day[6:]})은 공시가 없어 최근 거래일"
+                    f"({trading_day[4:6]}/{trading_day[6:]}) 공시를 보여드려요."
+                )
+                day = trading_day
+
     # v1.1: 시총 상위 종목 가중 — 이미 캐시된 스냅샷이 있으면 활용 (없으면 1회 구축)
     large_caps: set[str] = set()
     try:
@@ -64,10 +82,15 @@ async def daily_digest(
         "top_disclosures": top,
         "total_disclosures_today": len(disclosures),
         "market_note": market_note,
+        "fallback_note": fallback_note,
         "note": (
             "오늘 나온 공시 중 초보자에게 중요한 것만 골랐어요."
             if top else "오늘은 초보자에게 중요한 등급의 공시가 아직 없어요."
         ),
+        "suggested_questions": [
+            "관심 있는 종목의 위험신호를 점검해볼까요?",
+            "특정 종목이 오늘 왜 움직였는지 물어보세요.",
+        ],
     }
     return envelope(payload, [source("DART 전자공시 (당일)", "https://dart.fss.or.kr", day)])
 

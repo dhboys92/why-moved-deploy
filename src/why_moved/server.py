@@ -33,9 +33,15 @@ mcp = FastMCP(
     # localhost 전용 DNS 리바인딩 보호를 끈다 (로컬 비밀 없음, 공개 서비스)
     transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
     instructions=(
-        "주식 초보자를 위한 공시·시세 통역 도구입니다. "
-        "모든 응답은 DART·KRX 공개 데이터의 사실 요약이며 투자 권유가 아닙니다. "
-        "응답의 sources와 disclaimer를 사용자에게 함께 전달해 주세요."
+        "주식 초보자를 위한 공시·시세 통역 도구입니다. 응답 시 다음을 지켜주세요:\n"
+        "1) chart_url이 있으면 반드시 이미지로 보여주세요. 차트 위 번호 마커는 chart_events의 "
+        "no와 1:1 대응하므로 번호별 공시 목록도 함께 제시하세요.\n"
+        "2) 답변에는 sources의 공시 원문 링크를 포함하고, 마지막에 disclaimer(투자 권유 아님)를 "
+        "한 줄로 전달하세요.\n"
+        "3) suggested_questions가 있으면 답변 끝에 그중 1~2개를 '이어서 물어보세요'로 제안하세요.\n"
+        "4) 사용자는 주식 초보자입니다. 전문용어는 terms의 쉬운 설명을 활용해 풀어 말하고, "
+        "특정 종목의 매수·매도를 권하지 마세요.\n"
+        "5) 응답에 candidates가 있으면 어느 종목인지 사용자에게 되물어 주세요."
     ),
 )
 
@@ -54,7 +60,12 @@ async def _safe(coro) -> dict[str, Any]:
     try:
         result = await coro
     except WhyMovedError as exc:
-        return {"error": str(exc)}
+        payload: dict[str, Any] = {"error": str(exc)}
+        candidates = getattr(exc, "candidates", None)
+        if candidates:
+            payload["candidates"] = candidates
+            payload["hint"] = "candidates 중 어느 종목인지 사용자에게 물어봐 주세요."
+        return payload
     except Exception:
         logger.exception("unexpected error")
         return {"error": "일시적인 오류가 발생했어요. 잠시 후 다시 시도해 주세요."}
@@ -170,11 +181,40 @@ async def chart(request: Request) -> Response:
     return FileResponse(path, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
 
 
+_PREWARM_STOCKS = ("삼성전자", "SK하이닉스", "카카오", "NAVER", "현대차",
+                   "삼성바이오로직스", "LG에너지솔루션", "기아")
+
+
+async def _prewarm() -> None:
+    """인기 종목의 시세·공시·차트를 미리 캐시해 첫 질의(심사 포함)를 빠르게 한다."""
+    import asyncio
+
+    from why_moved.tools.why_moved_tool import why_moved
+
+    await asyncio.sleep(3)  # 서버 기동 완료 대기
+    ctx = _context()
+    for name in _PREWARM_STOCKS:
+        try:
+            await why_moved(ctx, name)
+            logger.info("prewarmed %s", name)
+        except Exception as exc:
+            logger.warning("prewarm failed for %s: %s", name, exc)
+        await asyncio.sleep(1)  # 외부 API 예의
+
+
+def _start_prewarm_thread() -> None:
+    import asyncio
+    import threading
+
+    threading.Thread(target=lambda: asyncio.run(_prewarm()), daemon=True).start()
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
     settings = get_settings()
     mcp.settings.host = settings.server_host
     mcp.settings.port = settings.server_port
+    _start_prewarm_thread()
     mcp.run(transport="streamable-http")
 
 

@@ -12,6 +12,25 @@ class StockNotFoundError(WhyMovedError):
         )
 
 
+class AmbiguousStockError(WhyMovedError):
+    """여러 종목이 매칭 — 후보를 사용자에게 되물을 수 있게 candidates를 담는다."""
+
+    def __init__(self, query: str, candidates: list[str]):
+        self.candidates = candidates[:5]
+        names = ", ".join(self.candidates)
+        super().__init__(
+            f"'{query}'에 해당하는 종목이 여러 개예요: {names}. 어느 종목인지 알려주시면 바로 분석해 드릴게요."
+        )
+
+
+class EtfNotSupportedError(WhyMovedError):
+    def __init__(self, query: str):
+        super().__init__(
+            f"'{query}'은(는) ETF·ETN으로 보여요. ETF는 기업 공시 기반 분석 대상이 아니라 아직 지원하지 않아요. "
+            "개별 종목명(예: 삼성전자)으로 물어봐 주세요."
+        )
+
+
 class DisclosureNotFoundError(WhyMovedError):
     def __init__(self, hint: str):
         super().__init__(f"해당 공시를 찾지 못했어요. ({hint})")

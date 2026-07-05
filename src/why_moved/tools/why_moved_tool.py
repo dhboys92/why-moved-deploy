@@ -22,7 +22,7 @@ async def why_moved(ctx: AppContext, query: str, date: str | None = None) -> dic
     factors: list[dict] = []
     sources = [source("네이버 금융 시세 (KRX 데이터)", f"https://finance.naver.com/item/main.naver?code={corp.stock_code}", day)]
 
-    # 1) 공시 요인: D-3 ~ 당일
+    # 1) 공시 요인: D-3 ~ 당일 — 같은 유형은 1건으로 병합 (중복 서술 방지)
     bgn = (datetime.strptime(day, "%Y%m%d") - timedelta(days=3)).strftime("%Y%m%d")
     disclosures = await ctx.dart.search_disclosures(corp_code=corp.corp_code, bgn_de=bgn, end_de=day)
     important = sorted(
@@ -30,15 +30,20 @@ async def why_moved(ctx: AppContext, query: str, date: str | None = None) -> dic
         key=lambda d: match_template(d["report_nm"]).importance,
         reverse=True,
     )
-    for d in important[:2]:
-        template = match_template(d["report_nm"])
-        url = dart_viewer_url(d["rcept_no"])
+    grouped: dict[str, list[dict]] = {}
+    for d in important:
+        grouped.setdefault(match_template(d["report_nm"]).type_name, []).append(d)
+    for type_name, items in list(grouped.items())[:2]:
+        latest = max(items, key=lambda d: d.get("rcept_dt", ""))
+        template = match_template(latest["report_nm"])
+        url = dart_viewer_url(latest["rcept_no"])
+        count_note = f" (최근 3일간 {len(items)}건)" if len(items) > 1 else ""
         factors.append({
             "type": "disclosure",
-            "summary": f"[{d['rcept_dt']}] {d['report_nm']} — {template.what_happened} {template.so_what}",
+            "summary": f"[{latest['rcept_dt']}] {type_name} 공시{count_note} — {template.what_happened} {template.so_what}",
             "source_url": url,
         })
-        sources.append(source(d["report_nm"], url, d["rcept_dt"]))
+        sources.append(source(latest["report_nm"], url, latest["rcept_dt"]))
 
     # 2) 뉴스 요인 (v1.1): 최근 헤드라인 — 제목만 인용, 원문 링크 첨부
     news = await ctx.market.get_stock_news(corp.stock_code, limit=3)
@@ -136,6 +141,11 @@ async def why_moved(ctx: AppContext, query: str, date: str | None = None) -> dic
         ),
         "terms": attach_terms(explanation + " ".join(f["summary"] for f in factors)),
         "data_note": f"{day} 종가 기준 데이터예요 (뉴스·장중 시세 제외).",
+        "suggested_questions": [
+            f"{corp.name} 위험신호도 점검해볼까요?",
+            f"{corp.name} 재무 건강 학점이 궁금하다면?",
+            f"{corp.name} 임원들이 최근 자기 주식을 샀는지 볼까요?",
+        ],
     }
     return envelope(payload, sources)
 

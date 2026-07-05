@@ -81,14 +81,16 @@ def evaluate_rules(ctx: RiskContext) -> tuple[list[RiskSignal], list[str]]:
     else:
         unavailable.append("R02")
 
-    # R03 관리종목
-    if ctx.managed is None:
-        unavailable.append("R03")
-    elif ctx.managed:
+    # R03 관리종목 — KIND 목록 + 공시 제목 폴백 (둘 중 하나만 잡혀도 신호)
+    managed_disclosures = _find(ctx.disclosures_2y, ("관리종목지정",), ctx.today, 365)
+    if ctx.managed or managed_disclosures:
         signals.append(RiskSignal(
             "R03", "위험", "관리종목 지정",
             "거래소가 '투자에 특히 주의하라'고 지정한 종목이에요. 상장폐지 위험이 있어요.",
+            rcept_no=managed_disclosures[0].get("rcept_no", "") if managed_disclosures else "",
         ))
+    elif ctx.managed is None and not managed_disclosures:
+        pass  # KIND 확인 불가여도 공시 제목 점검은 수행됨 — 확인 불가로 표기하지 않음
 
     # R04 거래정지 이력 (1년) — 공시 제목 기반
     halts = _find(ctx.disclosures_2y, ("매매거래정지",), ctx.today, 365)
@@ -99,13 +101,13 @@ def evaluate_rules(ctx: RiskContext) -> tuple[list[RiskSignal], list[str]]:
             f"{len(halts)}건", halts[0].get("rcept_no", ""),
         ))
 
-    # R05 불성실공시법인 (1년)
-    if ctx.unfaithful is None:
-        unavailable.append("R05")
-    elif ctx.unfaithful:
+    # R05 불성실공시법인 (1년) — KIND 목록 + 공시 제목 폴백
+    unfaith_disclosures = _find(ctx.disclosures_2y, ("불성실공시법인지정",), ctx.today, 365)
+    if ctx.unfaithful or unfaith_disclosures:
         signals.append(RiskSignal(
             "R05", "경고", "불성실공시법인 지정",
             "공시 의무를 지키지 않아 거래소의 지정을 받은 회사예요.",
+            rcept_no=unfaith_disclosures[0].get("rcept_no", "") if unfaith_disclosures else "",
         ))
 
     # R06 CB/BW 발행 3회+ (2년)

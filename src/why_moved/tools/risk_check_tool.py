@@ -88,6 +88,10 @@ async def risk_check(ctx: AppContext, query: str) -> dict:
         "unavailable_rules": unavailable,
         "chart_url": chart_url,
         "chart_hint": "chart_url은 위험 진단 요약 카드 이미지입니다. 사용자에게 보여주세요." if chart_url else None,
+        "suggested_questions": [
+            f"{corp.name}이(가) 최근 왜 움직였는지 볼까요?",
+            f"{corp.name} 재무 건강 학점도 확인해볼까요?",
+        ],
     }
     return envelope(payload, sources)
 

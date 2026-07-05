@@ -57,10 +57,24 @@ def test_r03_managed_stock():
     assert "R03" in _ids(signals)
 
 
-def test_r03_unknown_reported_unavailable():
+def test_r03_kind_unknown_falls_back_to_disclosure_titles():
+    # KIND 확인 불가여도 공시 제목 점검이 수행되므로 '확인 불가'가 아니다
     signals, unavailable = evaluate_rules(RiskContext(today=TODAY, managed=None))
     assert "R03" not in _ids(signals)
-    assert "R03" in unavailable
+    assert "R03" not in unavailable
+
+
+def test_r03_detected_from_disclosure_title():
+    disclosures = [{"report_nm": "관리종목지정", "rcept_no": "9", "rcept_dt": "20260601"}]
+    signals, _ = evaluate_rules(RiskContext(today=TODAY, managed=None, disclosures_2y=disclosures))
+    assert "R03" in _ids(signals)
+
+
+def test_r05_detected_from_disclosure_title():
+    disclosures = [{"report_nm": "불성실공시법인지정", "rcept_no": "8", "rcept_dt": "20260601"}]
+    signals, unavailable = evaluate_rules(RiskContext(today=TODAY, unfaithful=None, disclosures_2y=disclosures))
+    assert "R05" in _ids(signals)
+    assert "R05" not in unavailable
 
 
 def test_r06_cb_three_times():
