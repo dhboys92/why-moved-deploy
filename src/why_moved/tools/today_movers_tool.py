@@ -101,4 +101,16 @@ async def _investigate(ctx: AppContext, mover: dict, day: str) -> dict:
     except Exception:
         pass
 
-    return {**mover, "reasons": reasons}
+    # oneDesk 등 표 기반 UI를 위한 평탄화 필드 (reasons 원본은 유지)
+    reason_summary = (
+        " / ".join(r["summary"] for r in reasons)
+        if reasons
+        else "공개 요인 미확인 — 테마성일 수 있어요"
+    )
+    reason_url = next((r["source_url"] for r in reasons if r.get("source_url")), None)
+    return {
+        **mover,
+        "reasons": reasons,
+        "reason_summary": reason_summary,
+        "reason_url": reason_url,
+    }

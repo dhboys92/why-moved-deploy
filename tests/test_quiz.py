@@ -79,6 +79,9 @@ class TestTodayMoversTool:
         assert mover["change_pct"] == 15.2
         types = {r["type"] for r in mover["reasons"]}
         assert types == {"disclosure", "news"}
+        # 표 기반 UI용 평탄화 필드
+        assert all(r["summary"] in mover["reason_summary"] for r in mover["reasons"])
+        assert mover["reason_url"] == mover["reasons"][0]["source_url"]
         assert result["chart_url"]
         assert "급등" in result["summary"]
 
@@ -93,3 +96,5 @@ class TestTodayMoversTool:
         mock_ctx.market.get_stock_news.return_value = []
         result = await today_movers(mock_ctx)
         assert result["movers"][0]["reasons"] == []  # 크래시 없이 등락률만
+        assert "미확인" in result["movers"][0]["reason_summary"]
+        assert result["movers"][0]["reason_url"] is None

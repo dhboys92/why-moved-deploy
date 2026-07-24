@@ -89,7 +89,10 @@ def _executive_event(row: dict, cut: str) -> dict | None:
     signal_strength = "강함" if any(r in reason for r in _STRONG_BUY_REASONS) else (
         "약함" if any(r in reason for r in _WEAK_REASONS) else "보통"
     )
+    # oneDesk 등 표 기반 UI를 위한 평탄화 필드 (개별 필드는 유지)
+    detail = f"{abs(int(change)):,}주 · {reason or '사유 미표기'} (신호 {signal_strength})"
     return {
+        "detail": detail,
         "date": date,
         "who": row.get("repror", "임원·주요주주"),
         "role": row.get("isu_exctv_ofcps") or row.get("isu_main_shrholdr", ""),
@@ -114,6 +117,7 @@ def _major_holder_event(row: dict, cut: str) -> dict | None:
     ratio = _num(row.get("stkrt"))
     prev_ratio = _num(row.get("stkrt_irds"))
     return {
+        "detail": f"보유 지분 {ratio:g}% (변동 {prev_ratio:+g}%p)",
         "date": date,
         "who": row.get("repror", "대량보유자"),
         "role": "5% 이상 주주",

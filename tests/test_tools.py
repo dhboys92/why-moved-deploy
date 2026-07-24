@@ -127,6 +127,8 @@ class TestInsiderSignal:
         result = await insider_signal(mock_ctx, "삼성전자", days=30)
         _assert_envelope(result)
         assert result["events"][0]["action"] == "매수"
+        # 표 기반 UI용 평탄화 필드
+        assert result["events"][0]["detail"] == "10,000주 · 사유 미표기 (신호 보통)"
         assert "매수 1건" in result["summary"]
 
     async def test_no_events(self, mock_ctx):
