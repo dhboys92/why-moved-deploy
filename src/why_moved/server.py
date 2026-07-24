@@ -34,6 +34,10 @@ mcp = FastMCP(
     # 공개 호스팅(PlayMCP in KC) 환경: 프록시 뒤에서 다양한 Host 헤더로 접근되므로
     # localhost 전용 DNS 리바인딩 보호를 끈다 (로컬 비밀 없음, 공개 서비스)
     transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
+    # oneDesk(MCPilot) 연동: onedesk_server의 MCP 클라이언트는 initialize 핸드셰이크 없이
+    # tools/call을 바로 보내는 stateless 호출 방식 — 세션 ID 요구를 없애 호환시킨다.
+    # 표준 MCP 클라이언트(PlayMCP 등)의 initialize 흐름도 계속 동작한다.
+    stateless_http=True,
     instructions=(
         "주식 초보자를 위한 공시·시세 통역 도구입니다. 응답 시 다음을 지켜주세요:\n"
         "1) chart_url이 있으면 반드시 이미지로 보여주세요. 차트 위 번호 마커는 chart_events의 "

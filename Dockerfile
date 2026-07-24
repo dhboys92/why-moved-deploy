@@ -20,12 +20,12 @@ WORKDIR /app
 COPY --from=builder --chown=app:app /app/.venv /app/.venv
 COPY --from=builder --chown=app:app /app/src /app/src
 
+# 시크릿(DART_API_KEY)과 배포 주소(PUBLIC_BASE_URL)는 이미지에 넣지 않고
+# 런타임에 주입한다 (docker compose env_file / -e / 오케스트레이터 secret)
 ENV PATH="/app/.venv/bin:$PATH" \
     SERVER_HOST=0.0.0.0 \
     SERVER_PORT=8000 \
-    CACHE_DB_PATH=/data/cache.db \
-    DART_API_KEY=9d3a602edd263c64ad5b84cff886a167fdc52df0 \
-    PUBLIC_BASE_URL=https://why-moved.playmcp-endpoint.kakaocloud.io
+    CACHE_DB_PATH=/data/cache.db
 
 # 캐시 DB 볼륨 (컨테이너 재시작에도 DART 호출 한도 절약 유지)
 RUN mkdir -p /data && chown app:app /data

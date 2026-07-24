@@ -1,0 +1,42 @@
+# 왜움직여? MCP 서버 — oneDesk(koscom POC) 인프라 컨테이너 배포
+#
+# 전제: oneDesk 스택이 사용하는 외부 네트워크 `onedesk-network-koscom`이 이미 존재.
+#   (없으면: docker network create onedesk-network-koscom)
+#
+# 시크릿 주입: DART_API_KEY / PUBLIC_BASE_URL은 이미지에 없고 `.env`(gitignore)에서 읽는다.
+#   - DART_API_KEY        : DART OpenAPI 키 (필수, 없으면 기동 실패)
+#   - PUBLIC_BASE_URL     : 차트 이미지 URL의 베이스. 사용자 브라우저가 접근 가능한 주소여야 함
+#                           (로컬 인프라 기준 http://localhost:12106)
+#
+# oneDesk 도구 등록(mcp_servers.base_url)은 컨테이너 간 내부 주소를 쓴다:
+#   http://why-moved-koscom:8000   (같은 네트워크의 onedesk-koscom-hostapp에서 접근)
+#
+# 실행: docker compose up -d --build
+services:
+  why-moved:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: why-moved
+    container_name: why-moved-koscom
+    ports:
+      - "12106:8000" # 호스트 12106 → 컨테이너 8000 (브라우저 차트/health 접근용)
+    env_file: .env
+    environment:
+      # .env는 로컬 uv 실행용 값(포트 12106, 상대 경로)도 담고 있어 컨테이너 기준으로 덮어쓴다
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8000
+      - CACHE_DB_PATH=/data/cache.db
+    volumes:
+      # 캐시 DB + 차트 PNG (컨테이너 재시작에도 DART 일 20,000회 한도 절약 유지)
+      - why-moved-cache:/data
+    restart: unless-stopped
+    networks:
+      - onedesk-network-koscom
+
+volumes:
+  why-moved-cache:
+
+networks:
+  onedesk-network-koscom:
+    external: true
