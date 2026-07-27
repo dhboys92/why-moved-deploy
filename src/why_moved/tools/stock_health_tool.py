@@ -80,7 +80,10 @@ async def stock_health(ctx: AppContext, query: str) -> dict:
             f"{corp.name}이(가) 오늘 왜 움직였는지 볼까요?",
             f"{corp.name} 위험신호 15가지 점검도 해볼까요?",
         ],
-        "checks": [asdict(c) for c in checks],
+        # result는 oneDesk 표 렌더링용 평탄화 필드 (passed 불리언의 ✅/❌ 표기)
+        "checks": [
+            {**asdict(c), "result": "✅" if c.passed else "❌"} for c in checks
+        ],
         "data_basis": {
             "fiscal_period": f"{fiscal_year}년 사업보고서" if fiscal_year else "재무 데이터 없음",
             "valuation_note": "PER·PBR·배당수익률은 네이버 금융 최근 거래일 기준이에요.",
