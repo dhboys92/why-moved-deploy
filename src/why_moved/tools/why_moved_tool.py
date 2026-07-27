@@ -13,6 +13,15 @@ from why_moved.engine.textviz import sparkline
 _SIGNIFICANT_FLOW = 1_000_000_000  # 순매수 10억원 이상이면 수급 요인으로 언급
 _SECTOR_MOVE_THRESHOLD = 1.5       # 동종업계 평균 등락률(%) 요인 임계
 
+# type_label은 oneDesk 표 렌더링용 평탄화 필드 (type 코드의 한글 구분명)
+_FACTOR_TYPE_LABELS = {
+    "disclosure": "공시",
+    "news": "주요 소식",
+    "flow": "수급",
+    "sector": "업종",
+    "market": "시황",
+}
+
 
 async def why_moved(ctx: AppContext, query: str, date: str | None = None) -> dict:
     corp = await ctx.resolver.resolve(query)
@@ -118,6 +127,9 @@ async def why_moved(ctx: AppContext, query: str, date: str | None = None) -> dic
         chart_url, chart_events = await _price_chart(ctx, corp, day, series, bgn_days=60)
     except Exception:
         pass  # 차트는 부가 요소 — 실패해도 응답은 계속
+
+    for f in factors:
+        f["type_label"] = _FACTOR_TYPE_LABELS.get(f["type"], f["type"])
 
     explanation = _build_explanation(corp.name, price, factors, spark, intraday_note)
     payload = {
