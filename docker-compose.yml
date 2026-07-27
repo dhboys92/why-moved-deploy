@@ -27,10 +27,18 @@ services:
       - SERVER_HOST=0.0.0.0
       - SERVER_PORT=8000
       - CACHE_DB_PATH=/data/cache.db
+      # 종목명 보충 조회용 market-data-collector 주소.
+      # 로컬: collector가 다른 compose 네트워크라 호스트 경유(기본값).
+      # 운영: 같은 네트워크(onedesk-network-koscom)이므로 .env에
+      #       MARKET_DATA_BASE_URL_DOCKER=http://market-data-api:8000 설정.
+      - MARKET_DATA_BASE_URL=${MARKET_DATA_BASE_URL_DOCKER:-http://host.docker.internal:7000}
     volumes:
       # 캐시 DB + 차트 PNG (컨테이너 재시작에도 DART 일 20,000회 한도 절약 유지)
       - why-moved-cache:/data
     restart: unless-stopped
+    extra_hosts:
+      # Linux 엔진에서도 host.docker.internal 해석 (Docker Desktop은 기본 제공)
+      - "host.docker.internal:host-gateway"
     networks:
       - onedesk-network-koscom
 

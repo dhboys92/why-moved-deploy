@@ -7,6 +7,7 @@ import httpx
 import pytest
 import respx
 
+from why_moved.adapters.collector_names import CollectorNameClient
 from why_moved.adapters.corp_codes import CorpCodeResolver
 from why_moved.adapters.dart import DartClient
 from why_moved.adapters.kind import KindClient
@@ -265,3 +266,51 @@ class TestDartDateNormalization:
         client = DartClient("key", cache)
         rows = await client.get_executive_holdings("X")
         assert rows[0]["rcept_dt"] == "20260701"
+
+
+class TestCollectorNameClient:
+    URL = "http://collector:8000/api/v1/securities/names"
+
+    def _client(self, cache):
+        return CollectorNameClient("http://collector:8000", cache)
+
+    @respx.mock
+    async def test_lookup_returns_names_and_caches(self, cache):
+        route = respx.post(self.URL).mock(
+            return_value=httpx.Response(200, json={"results": [
+                {"exchange_code": "KOSPI", "symbol": "005935", "name": "삼성전자우"},
+                {"exchange_code": "KOSPI", "symbol": "999999", "name": None},
+            ]})
+        )
+        client = self._client(cache)
+        result = await client.lookup([("KOSPI", "005935"), ("KOSPI", "999999")])
+        assert result == {"005935": "삼성전자우"}
+        assert route.calls.last.request.content == httpx.Request(
+            "POST", self.URL,
+            json={"securities": [
+                {"exchange_code": "KOSPI", "symbol": "005935"},
+                {"exchange_code": "KOSPI", "symbol": "999999"},
+            ]},
+        ).content
+
+        # 두 번째 호출: 찾은 이름은 캐시, 못 찾은 코드만 재조회
+        await client.lookup([("KOSPI", "005935"), ("KOSPI", "999999")])
+        assert route.call_count == 2
+        assert b"005935" not in route.calls.last.request.content
+
+    @respx.mock
+    async def test_lookup_swallows_http_error(self, cache):
+        respx.post(self.URL).mock(return_value=httpx.Response(500))
+        result = await self._client(cache).lookup([("KOSPI", "005935")])
+        assert result == {}
+
+    @respx.mock
+    async def test_lookup_swallows_malformed_response(self, cache):
+        respx.post(self.URL).mock(return_value=httpx.Response(200, json={"oops": 1}))
+        result = await self._client(cache).lookup([("KOSPI", "005935")])
+        assert result == {}
+
+    async def test_lookup_all_cached_skips_http(self, cache):
+        cache.set("collector_name:005935", "삼성전자우", 60)
+        result = await self._client(cache).lookup([("KOSPI", "005935")])
+        assert result == {"005935": "삼성전자우"}  # respx 없이도 네트워크 미발생

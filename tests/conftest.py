@@ -56,8 +56,12 @@ def mock_ctx(tmp_path):
     kind.is_managed.return_value = False
     kind.is_unfaithful.return_value = False
 
+    names = AsyncMock()
+    names.lookup.return_value = {}
+
     return AppContext(
         dart=dart, market=market, kind=kind, resolver=resolver,
         charts=ChartStore(str(tmp_path / "charts")),
         public_base_url="http://testserver",
+        names=names,
     )

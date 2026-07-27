@@ -16,6 +16,7 @@ class Settings:
     server_host: str
     server_port: int
     public_base_url: str
+    market_data_base_url: str
 
     @staticmethod
     def from_env() -> "Settings":
@@ -29,6 +30,8 @@ class Settings:
             server_port=port,
             # 차트 URL 생성용 공개 베이스 URL (배포 시 환경변수로 지정)
             public_base_url=os.environ.get("PUBLIC_BASE_URL", f"http://localhost:{port}").rstrip("/"),
+            # market-data-collector 종목명 보충 조회용 (선택 — 비우면 기능 비활성)
+            market_data_base_url=os.environ.get("MARKET_DATA_BASE_URL", "").rstrip("/"),
         )
 
 

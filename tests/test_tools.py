@@ -1,5 +1,7 @@
 """tool 통합 테스트 — 어댑터 모킹, envelope 계약 검증."""
 
+from dataclasses import replace
+
 import pytest
 
 from why_moved.common.envelope import DISCLAIMER
@@ -171,3 +173,50 @@ class TestScreenStocks:
         result = await screen_stocks(mock_ctx, "느낌 좋은 종목")
         assert result["results"] == []
         assert "이해하지 못했어요" in result["note"]
+
+    async def test_missing_name_filled_from_collector(self, mock_ctx):
+        """DART 마스터에 없는 종목(우선주 등)은 collector에서 이름을 보충한다."""
+        mock_ctx.market.get_fundamental_snapshot.return_value = [
+            {"code": "005935", "market": "KOSPI", "per": 8.0, "pbr": 0.9, "div": 4.2, "close": 200000},
+        ]
+        mock_ctx.resolver.name_map.return_value = {"005930": "삼성전자"}
+        mock_ctx.names.lookup.return_value = {"005935": "삼성전자우"}
+
+        result = await screen_stocks(mock_ctx, "배당수익률 4% 이상")
+        assert result["results"][0]["name"] == "삼성전자우"
+        mock_ctx.names.lookup.assert_awaited_once_with([("KOSPI", "005935")])
+
+    async def test_collector_not_called_when_names_complete(self, mock_ctx):
+        """DART로 이름이 전부 조인되면 collector를 호출하지 않는다."""
+        mock_ctx.market.get_fundamental_snapshot.return_value = [
+            {"code": "000660", "market": "KOSPI", "per": 8.0, "pbr": 0.9, "div": 4.2, "close": 100000},
+        ]
+        mock_ctx.resolver.name_map.return_value = {"000660": "SK하이닉스"}
+
+        result = await screen_stocks(mock_ctx, "배당수익률 4% 이상")
+        assert result["results"][0]["name"] == "SK하이닉스"
+        mock_ctx.names.lookup.assert_not_awaited()
+
+    async def test_missing_name_falls_back_to_code_without_collector(self, mock_ctx):
+        """collector 미설정(names=None)이면 기존처럼 종목코드로 폴백한다."""
+        mock_ctx.market.get_fundamental_snapshot.return_value = [
+            {"code": "005935", "market": "KOSPI", "per": 8.0, "pbr": 0.9, "div": 4.2, "close": 200000},
+        ]
+        mock_ctx.resolver.name_map.return_value = {}
+        ctx = replace(mock_ctx, names=None)
+
+        result = await screen_stocks(ctx, "배당수익률 4% 이상")
+        assert result["results"][0]["name"] == "005935"
+
+    async def test_collector_partial_result_falls_back_to_code(self, mock_ctx):
+        """collector가 일부만 찾아도(장애 부분 결과 포함) 나머지는 코드로 폴백한다."""
+        mock_ctx.market.get_fundamental_snapshot.return_value = [
+            {"code": "005935", "market": "KOSPI", "per": 8.0, "pbr": 0.9, "div": 4.2, "close": 200000},
+            {"code": "338100", "market": "KOSDAQ", "per": 5.0, "pbr": 0.8, "div": 5.0, "close": 5000},
+        ]
+        mock_ctx.resolver.name_map.return_value = {}
+        mock_ctx.names.lookup.return_value = {"005935": "삼성전자우"}
+
+        result = await screen_stocks(mock_ctx, "배당수익률 4% 이상")
+        by_code = {r["code"]: r["name"] for r in result["results"]}
+        assert by_code == {"005935": "삼성전자우", "338100": "338100"}

@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
+from why_moved.adapters.collector_names import CollectorNameClient
 from why_moved.adapters.corp_codes import CorpCodeResolver
 from why_moved.adapters.dart import DartClient
 from why_moved.adapters.kind import KindClient
@@ -20,6 +21,8 @@ class AppContext:
     resolver: CorpCodeResolver
     charts: ChartStore
     public_base_url: str
+    # DART 마스터에 없는 종목명 보충용 (collector 미설정 시 None)
+    names: CollectorNameClient | None = None
 
     def chart_url(self, chart_id: str) -> str:
         return f"{self.public_base_url}/charts/{chart_id}.png"
@@ -41,4 +44,11 @@ def build_context(settings: Settings) -> AppContext:
         resolver=CorpCodeResolver(settings.dart_api_key, cache),
         charts=ChartStore(charts_dir, salt=_app_version()),
         public_base_url=settings.public_base_url,
+        names=(
+            CollectorNameClient(
+                settings.market_data_base_url, cache, settings.http_timeout_seconds
+            )
+            if settings.market_data_base_url
+            else None
+        ),
     )

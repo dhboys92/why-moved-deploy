@@ -27,6 +27,11 @@ async def screen_stocks(ctx: AppContext, condition: str, limit: int = 20) -> dic
     names = await ctx.resolver.name_map()
     matched = apply_conditions(rows, conditions, limit)
 
+    # DART 마스터에 없는 종목(우선주·리츠·스팩 등)은 collector 마스터에서 이름 보충
+    missing = [(r["market"], r["code"]) for r in matched if r["code"] not in names]
+    if missing and ctx.names is not None:
+        names = {**names, **(await ctx.names.lookup(missing))}
+
     day = await ctx.market.latest_trading_day()
     payload = {
         "parsed_conditions": [asdict(c) for c in conditions],
