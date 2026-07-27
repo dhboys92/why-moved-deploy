@@ -2,8 +2,8 @@
 
 import asyncio
 from dataclasses import asdict
-from datetime import datetime
 
+from why_moved.common.clock import now_kst
 from why_moved.common.envelope import envelope, source
 from why_moved.context import AppContext
 from why_moved.engine import charts
@@ -98,7 +98,7 @@ async def stock_health(ctx: AppContext, query: str) -> dict:
 
 async def _latest_annual(ctx: AppContext, corp_code: str) -> tuple[str, dict]:
     """가장 최근에 제출된 사업보고서 재무를 찾는다 (당해→전년 순서로 시도)."""
-    current_year = datetime.now().year
+    current_year = now_kst().year
     for year in (current_year - 1, current_year - 2):
         try:
             rows = await ctx.dart.get_financials(corp_code, str(year), _ANNUAL_REPORT)

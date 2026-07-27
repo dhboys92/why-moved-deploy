@@ -4,6 +4,7 @@ import asyncio
 from dataclasses import asdict
 from datetime import datetime, timedelta
 
+from why_moved.common.clock import now_kst
 from why_moved.common.envelope import dart_viewer_url, envelope, source
 from why_moved.context import AppContext
 from why_moved.engine import charts
@@ -20,8 +21,8 @@ _ANNUAL_REPORT = "11011"
 
 async def risk_check(ctx: AppContext, query: str) -> dict:
     corp = await ctx.resolver.resolve(query)
-    today = datetime.now().strftime("%Y%m%d")
-    bgn_2y = (datetime.now() - timedelta(days=730)).strftime("%Y%m%d")
+    today = now_kst().strftime("%Y%m%d")
+    bgn_2y = (now_kst() - timedelta(days=730)).strftime("%Y%m%d")
 
     disclosures = await ctx.dart.search_disclosures(
         corp_code=corp.corp_code, bgn_de=bgn_2y, end_de=today, page_count=100
@@ -37,7 +38,7 @@ async def risk_check(ctx: AppContext, query: str) -> dict:
     try:
         price = await ctx.market.get_price_move(corp.stock_code)
         volume_ratio = price.get("volume_ratio")
-        recent_cut = (datetime.now() - timedelta(days=3)).strftime("%Y%m%d")
+        recent_cut = (now_kst() - timedelta(days=3)).strftime("%Y%m%d")
         has_recent = any(d.get("rcept_dt", "") >= recent_cut for d in disclosures)
     except Exception:
         pass  # 시세 실패 시 R14만 확인 불가로 처리
@@ -99,7 +100,7 @@ async def risk_check(ctx: AppContext, query: str) -> dict:
 async def _collect_financials(ctx: AppContext, corp_code: str) -> dict[str, dict]:
     """최근 3개 사업연도의 자본총계·자본금·영업이익."""
     result: dict[str, dict] = {}
-    current_year = datetime.now().year
+    current_year = now_kst().year
     for year in range(current_year - 3, current_year):
         try:
             rows = await ctx.dart.get_financials(corp_code, str(year), _ANNUAL_REPORT)

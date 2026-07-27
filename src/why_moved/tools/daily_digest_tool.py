@@ -1,7 +1,6 @@
 """daily_digest — 오늘의 공시 3문항 다이제스트 (설계 §2.6)."""
 
-from datetime import datetime
-
+from why_moved.common.clock import now_kst
 from why_moved.common.envelope import dart_viewer_url, envelope, source
 from why_moved.context import AppContext
 from why_moved.engine.disclosure_templates import match_template
@@ -15,7 +14,7 @@ async def daily_digest(
     date: str | None = None,
     watchlist: list[str] | None = None,
 ) -> dict:
-    day = date or datetime.now().strftime("%Y%m%d")
+    day = date or now_kst().strftime("%Y%m%d")
     watch_names = set(watchlist or [])
 
     disclosures = await ctx.dart.search_disclosures(bgn_de=day, end_de=day, page_count=100)

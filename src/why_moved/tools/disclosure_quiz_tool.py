@@ -4,8 +4,7 @@
 정답은 사용자가 고른 뒤에만 공개하도록 quiz_hint로 안내한다.
 """
 
-from datetime import datetime
-
+from why_moved.common.clock import now_kst
 from why_moved.common.envelope import dart_viewer_url, envelope, source
 from why_moved.context import AppContext
 from why_moved.engine.disclosure_templates import match_template
@@ -14,7 +13,7 @@ from why_moved.engine.quiz import build_quiz
 
 
 async def disclosure_quiz(ctx: AppContext, topic: str = "") -> dict:
-    day = datetime.now().strftime("%Y%m%d")
+    day = now_kst().strftime("%Y%m%d")
     disclosures = await ctx.dart.search_disclosures(bgn_de=day, end_de=day, page_count=100)
 
     # 휴장일·이른 아침엔 최근 거래일 공시로 폴백 (daily_digest와 동일 전략)

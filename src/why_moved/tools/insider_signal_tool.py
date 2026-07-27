@@ -5,8 +5,9 @@ DART 임원·주요주주 소유보고(≈美 Form 4) + 5% 대량보유(≈13F) 
 """
 
 import asyncio
-from datetime import datetime, timedelta
+from datetime import timedelta
 
+from why_moved.common.clock import now_kst
 from why_moved.common.envelope import dart_viewer_url, envelope, source
 from why_moved.context import AppContext
 from why_moved.engine import charts
@@ -18,7 +19,7 @@ _WEAK_REASONS = ("스톡옵션", "주식매수선택권", "상속", "증여", "�
 
 async def insider_signal(ctx: AppContext, query: str, days: int = 30) -> dict:
     corp = await ctx.resolver.resolve(query)
-    cut = (datetime.now() - timedelta(days=days)).strftime("%Y%m%d")
+    cut = (now_kst() - timedelta(days=days)).strftime("%Y%m%d")
 
     events: list[dict] = []
     sources = [source("DART 지분공시", "https://dart.fss.or.kr")]

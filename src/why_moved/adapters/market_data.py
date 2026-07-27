@@ -78,10 +78,12 @@ class MarketDataClient:
         cached = self._cache.get("mkt:latest_day")
         if cached:
             return cached
-        from datetime import datetime, timedelta
+        from datetime import timedelta
 
-        end = datetime.now().strftime("%Y%m%d")
-        start = (datetime.now() - timedelta(days=10)).strftime("%Y%m%d")
+        from why_moved.common.clock import now_kst
+
+        end = now_kst().strftime("%Y%m%d")
+        start = (now_kst() - timedelta(days=10)).strftime("%Y%m%d")
         rows = await self._daily_rows("KOSPI", start, end)
         if not rows:
             raise UpstreamError("시세(네이버)", "최근 거래일 조회 실패")

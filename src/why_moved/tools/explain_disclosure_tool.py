@@ -1,7 +1,8 @@
 """explain_disclosure — 공시 쉬운말 통역 (설계 §2.3)."""
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 
+from why_moved.common.clock import now_kst
 from why_moved.common.envelope import dart_viewer_url, envelope, source
 from why_moved.common.errors import DisclosureNotFoundError
 from why_moved.context import AppContext
@@ -16,8 +17,8 @@ async def explain_disclosure(
     rcept_no: str = "",
 ) -> dict:
     corp = await ctx.resolver.resolve(company)
-    today = datetime.now().strftime("%Y%m%d")
-    bgn = (datetime.now() - timedelta(days=90)).strftime("%Y%m%d")
+    today = now_kst().strftime("%Y%m%d")
+    bgn = (now_kst() - timedelta(days=90)).strftime("%Y%m%d")
     disclosures = await ctx.dart.search_disclosures(
         corp_code=corp.corp_code, bgn_de=bgn, end_de=today
     )
